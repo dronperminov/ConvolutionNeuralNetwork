@@ -6,19 +6,19 @@
 using namespace std;
 
 int main() {
-	string dir = "dataset/"; // путь к папке с файлами
-	string train = dir + "mnist_train.csv"; // обучающая выборка
-	string test = dir + "mnist_test.csv"; // тестовая выборка
-	string labels = dir + "mnist.txt"; // файл с классами
+	string dir = "dataset/"; // РїСѓС‚СЊ Рє РїР°РїРєРµ СЃ С„Р°Р№Р»Р°РјРё
+	string train = dir + "mnist_train.csv"; // РѕР±СѓС‡Р°СЋС‰Р°СЏ РІС‹Р±РѕСЂРєР°
+	string test = dir + "mnist_test.csv"; // С‚РµСЃС‚РѕРІР°СЏ РІС‹Р±РѕСЂРєР°
+	string labels = dir + "mnist.txt"; // С„Р°Р№Р» СЃ РєР»Р°СЃСЃР°РјРё
 
-	int width = 28; // ширина изображений
-	int height = 28; // высота изображений
-	int deep = 1; // количество каналов
+	int width = 28; // С€РёСЂРёРЅР° РёР·РѕР±СЂР°Р¶РµРЅРёР№
+	int height = 28; // РІС‹СЃРѕС‚Р° РёР·РѕР±СЂР°Р¶РµРЅРёР№
+	int deep = 1; // РєРѕР»РёС‡РµСЃС‚РІРѕ РєР°РЅР°Р»РѕРІ
 
-	int trainCount = 60000; // число обучающих примеров (вся выборка)
+	int trainCount = 60000; // С‡РёСЃР»Рѕ РѕР±СѓС‡Р°СЋС‰РёС… РїСЂРёРјРµСЂРѕРІ (РІСЃСЏ РІС‹Р±РѕСЂРєР°)
 
-	double learningRate = 0.005; // скорость обучения
-	int maxEpochs = 10; // число эпох обучения
+	double learningRate = 0.005; // СЃРєРѕСЂРѕСЃС‚СЊ РѕР±СѓС‡РµРЅРёСЏ
+	int maxEpochs = 10; // С‡РёСЃР»Рѕ СЌРїРѕС… РѕР±СѓС‡РµРЅРёСЏ
 
 	CNN cnn(width, height, deep);
 	
@@ -30,34 +30,34 @@ int main() {
 	cnn.AddLayer("fullconnected outputs=128 activation=sigmoid");
 	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
 
-	cnn.PringConfig(); // выводим конфигурацию сети
+	cnn.PringConfig(); // РІС‹РІРѕРґРёРј РєРѕРЅС„РёРіСѓСЂР°С†РёСЋ СЃРµС‚Рё
 
-	// Optimizer sgd = Optimizer::SGD(learningRate); // оптимизатор - стохастический градиентный спуск
-	// Optimizer sgdm = Optimizer::SGDm(learningRate); // оптимизатор - стохастический градиентный спуск с моментом
-	// Optimizer adagrad = Optimizer::Adagrad(learningRate); // оптимизатор - адаптивный градиент
-	// Optimizer adadelta = Optimizer::Adadelta(learningRate); // оптимизатор - адаптивный градиент со скользящим средним
-	Optimizer nag = Optimizer::NAG(learningRate); // оптимизатор - ускоренный градиент Нестерова
+	// Optimizer sgd = Optimizer::SGD(learningRate); // РѕРїС‚РёРјРёР·Р°С‚РѕСЂ - СЃС‚РѕС…Р°СЃС‚РёС‡РµСЃРєРёР№ РіСЂР°РґРёРµРЅС‚РЅС‹Р№ СЃРїСѓСЃРє
+	// Optimizer sgdm = Optimizer::SGDm(learningRate); // РѕРїС‚РёРјРёР·Р°С‚РѕСЂ - СЃС‚РѕС…Р°СЃС‚РёС‡РµСЃРєРёР№ РіСЂР°РґРёРµРЅС‚РЅС‹Р№ СЃРїСѓСЃРє СЃ РјРѕРјРµРЅС‚РѕРј
+	// Optimizer adagrad = Optimizer::Adagrad(learningRate); // РѕРїС‚РёРјРёР·Р°С‚РѕСЂ - Р°РґР°РїС‚РёРІРЅС‹Р№ РіСЂР°РґРёРµРЅС‚
+	// Optimizer adadelta = Optimizer::Adadelta(learningRate); // РѕРїС‚РёРјРёР·Р°С‚РѕСЂ - Р°РґР°РїС‚РёРІРЅС‹Р№ РіСЂР°РґРёРµРЅС‚ СЃРѕ СЃРєРѕР»СЊР·СЏС‰РёРј СЃСЂРµРґРЅРёРј
+	Optimizer nag = Optimizer::NAG(learningRate); // РѕРїС‚РёРјРёР·Р°С‚РѕСЂ - СѓСЃРєРѕСЂРµРЅРЅС‹Р№ РіСЂР°РґРёРµРЅС‚ РќРµСЃС‚РµСЂРѕРІР°
 
-	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
+	DataLoader loader(train, width, height, deep, labels, trainCount); // Р·Р°РіСЂСѓР¶Р°РµРј РѕР±СѓС‡Р°СЋС‰РёРµ РґР°РЅРЅС‹Рµ
 
 	double bestAcc = 0;
 
-	// запускаем обучение с проверкой и сохранением наилучших сетей
+	// Р·Р°РїСѓСЃРєР°РµРј РѕР±СѓС‡РµРЅРёРµ СЃ РїСЂРѕРІРµСЂРєРѕР№ Рё СЃРѕС…СЂР°РЅРµРЅРёРµРј РЅР°РёР»СѓС‡С€РёС… СЃРµС‚РµР№
 	for (int i = 0; i < maxEpochs; i++) {
 		cout << (i + 1) << ":" << endl;
 
-		cnn.Train(loader.trainInputData, loader.trainOutputData, 1, nag); // обучаем в течение одной эпохи
+		cnn.Train(loader.trainInputData, loader.trainOutputData, 1, nag); // РѕР±СѓС‡Р°РµРј РІ С‚РµС‡РµРЅРёРµ РѕРґРЅРѕР№ СЌРїРѕС…Рё
 
-		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
-		double train_acc = loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
+		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // РїСЂРѕРІРµСЂСЏРµРј С‚РѕС‡РЅРѕСЃС‚СЊ РЅР° С‚РµСЃС‚РѕРІРѕР№ РІС‹Р±РѕСЂРєРµ
+		double train_acc = loader.Test(cnn, train, "Train accuracy: ", 10000); // РїСЂРѕРІРµСЂСЏРµРј С‚РѕС‡РЅРѕСЃС‚СЊ РЅР° РѕР±СѓС‡Р°СЋС‰РµР№ РІС‹Р±РѕСЂРєРµ
 
-		// если тестовая точность стала выше максимальной
+		// РµСЃР»Рё С‚РµСЃС‚РѕРІР°СЏ С‚РѕС‡РЅРѕСЃС‚СЊ СЃС‚Р°Р»Р° РІС‹С€Рµ РјР°РєСЃРёРјР°Р»СЊРЅРѕР№
 		if (bestAcc < test_acc) {
-			bestAcc = test_acc; // обновляем максимальную точность
-			cnn.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
+			bestAcc = test_acc; // РѕР±РЅРѕРІР»СЏРµРј РјР°РєСЃРёРјР°Р»СЊРЅСѓСЋ С‚РѕС‡РЅРѕСЃС‚СЊ
+			cnn.Save(to_string(test_acc) + ".txt"); // Рё СЃРѕС…СЂР°РЅСЏРµРј СЃРµС‚СЊ
 		}
 
-		cout << "Best accuracy: " << bestAcc << endl; // выводим лучшую точность
+		cout << "Best accuracy: " << bestAcc << endl; // РІС‹РІРѕРґРёРј Р»СѓС‡С€СѓСЋ С‚РѕС‡РЅРѕСЃС‚СЊ
 		cout << "==================================================================================" << endl;
 	}
 }
