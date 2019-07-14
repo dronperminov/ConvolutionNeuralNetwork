@@ -41,17 +41,17 @@ Volume::Volume(int width, int height, int deep) {
 	size.height = height;
 	size.deep = deep;
 
-	values = std::vector<std::vector<std::vector<double>>>(deep, std::vector<std::vector<double>>(height, std::vector<double>(width, 0)));
+	values = std::vector<std::vector<std::vector<double>>>(height, std::vector<std::vector<double>>(width, std::vector<double>(deep, 0)));
 }
 
 // индексация
 double& Volume::operator()(int d, int i, int j) {
-	return values[d][i][j];
+	return values[i][j][d];
 }
 
 // индексация
 double Volume::operator()(int d, int i, int j) const {
-	return values[d][i][j];
+	return values[i][j][d];
 }
 
 // получение глубины
@@ -71,8 +71,8 @@ int Volume::Width() const {
 
 // заполнение случайными числами
 void Volume::FillRandom(GaussRandom& random, double dev, double mean) {
-	for (int d = 0; d < size.deep; d++)
-		for (int i = 0; i < size.height; i++)
-			for (int j = 0; j < size.width; j++)
-				values[d][i][j] = random.Next(dev, mean);
+	for (int i = 0; i < size.height; i++)
+		for (int j = 0; j < size.width; j++)
+			for (int d = 0; d < size.deep; d++)
+				values[i][j][d] = random.Next(dev, mean);
 }

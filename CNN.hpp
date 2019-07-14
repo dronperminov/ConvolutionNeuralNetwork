@@ -221,17 +221,17 @@ void CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> 
 
 			error += MSE(layers[last]->GetOutput(), outputData[index]); // находим ошибку сети
 
-			// распространяем ошибку по слоям обратно
-			for (size_t i = last; i > 0; i--)
+			// распространяем ошибку по слоям обратно и обновляем весовые коэффициенты слоёв
+			for (size_t i = last; i > 0; i--) {
 				layers[i]->Backward(layers[i - 1]->GetDeltas());
+				layers[i]->UpdateWeights(optimizer, layers[i - 1]->GetOutput());
+			}
 
-			// обновляем весовые коэффициенты слоёв
-			for (size_t i = 0; i < layers.size(); i++)
-				layers[i]->UpdateWeights(optimizer);
+			layers[0]->UpdateWeights(optimizer, inputData[index]);
 
 			ms d = std::chrono::duration_cast<ms>(Time::now() - t0);
 			double dt = d.count() / (index + 1.0);
-			double t = (inputData.size() - index - 1) * dt;
+			double t = (inputData.size()/* - index - 1*/) * dt;
 
 			std::cout << index + 1 << " / " << inputData.size() << ", left: " << TimeSpan(t) << ", error: " << error << "\r";
 		}

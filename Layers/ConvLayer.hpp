@@ -28,7 +28,7 @@ public:
 	
 	void Forward(const Volume& input); // прямое распространение
 	void Backward(Volume& prevDeltas); // обратное распространение
-	void UpdateWeights(const Optimizer& optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer& optimizer, const Volume& input); // обновление весовых коэффициентов
 	
 	void ResetCache(); // сброс параметров
 	void Save(std::ostream &f); // сохранение слоя в файл
@@ -99,26 +99,22 @@ void ConvLayer::PrintConfig() const {
 	std::cout << "|     Convolution layer    | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << (fc * (fs*fs + 1)) << " | ";
+	std::cout << std::setw(12) << (fc * (fs*fs*fd + 1)) << " | ";
 	std::cout << fc << " filters [" << fs << "x" << fs << "x" << fd << "] P:" << P << " S:" << S << std::endl;
 }
 
 // получение количество обучаемых параметров
 int ConvLayer::GetTrainableParams() const {
-	return fc * (fs * fs + 1);
+	return fc * (fs * fs * fd + 1);
 }
 
 // прямое распространение
 void ConvLayer::Forward(const Volume& input) {
-	#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++)
-		for (int i = 0; i < inputSize.height; i++)
-			for (int j = 0; j < inputSize.width; j++)
-				this->input(d, i, j) = input(d, i, j);
-
 	// выполняем свёртку с каждым фильтром
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
+		Volume &filter = filters[index];
+
 		for (int y = 0, y0 = -P; y < outputSize.height; y++, y0 += S) {
 			for (int x = 0, x0 = -P; x < outputSize.width; x++, x0 += S) {
 				double sum = biases[index]; // значение элемента ij результирующей матрицы
@@ -137,7 +133,7 @@ void ConvLayer::Forward(const Volume& input) {
 							continue;
 
 						for (int k = 0; k < fd; k++) {
-							double weight = filters[index](k, i, j); // значение фильтра
+							double weight = filter(k, i, j); // значение фильтра
 							double value = input(k, i0, j0); // значение входного объёма
 
 							sum += weight * value; // прибавляем взвешенное произведение
@@ -199,7 +195,7 @@ void ConvLayer::Backward(Volume& prevDeltas) {
 }
 
 // обновление весовых коэффициентов
-void ConvLayer::UpdateWeights(const Optimizer& optimizer) {
+void ConvLayer::UpdateWeights(const Optimizer& optimizer, const Volume& input) {
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
 		for (int d = 0; d < fd; d++) {

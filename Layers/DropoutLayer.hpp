@@ -48,7 +48,6 @@ void DropoutLayer::ForwardOutput(const Volume& input) {
 	for (int d = 0; d < inputSize.deep; d++) {
 		for (int i = 0; i < inputSize.height; i++) {
 			for (int j = 0; j < inputSize.width; j++) {
-				this->input(d, i, j) = input(d, i, j);
 				output(d, i, j) = input(d, i, j);
 				deltas(d, i, j) = 1;
 			}
@@ -62,8 +61,6 @@ void DropoutLayer::Forward(const Volume& input) {
 	for (int d = 0; d < inputSize.deep; d++) {
 		for (int i = 0; i < inputSize.height; i++) {
 			for (int j = 0; j < inputSize.width; j++) {
-				this->input(d, i, j) = input(d, i, j);
-
 				if (distribution(generator)) {
 					output(d, i, j) = input(d, i, j) / p;
 					deltas(d, i, j) = 1;

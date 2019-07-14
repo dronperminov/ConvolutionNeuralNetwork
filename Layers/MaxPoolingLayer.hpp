@@ -58,11 +58,11 @@ void MaxPoolingLayer::Forward(const Volume& input) {
 
 				for (int x = j; x < dx; x++) {
 					for (int y = i; y < dy; y++) {
+						double value = input(d, y, x);
 						maxIndexes(d, y, x) = 0;
-						this->input(d, y, x) = input(d, y, x);
 
-						if (input(d, y, x) > max) {
-							max = input(d, y, x);
+						if (value > max) {
+							max = value;
 							imax = y;
 							jmax = x;
 						}
@@ -79,11 +79,17 @@ void MaxPoolingLayer::Forward(const Volume& input) {
 
 // обратное распространение
 void MaxPoolingLayer::Backward(Volume& prevDeltas) {
-	#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++)
-		for (int i = 0; i < inputSize.height; i++)
-			for (int j = 0; j < inputSize.width; j++)
-				prevDeltas(d, i, j) *= maxIndexes(d, i, j) * deltas(d, i / scale, j / scale);
+	#pragma omp parallel for
+	for (int i = 0; i < inputSize.height; i++) {
+		int di = i / scale;
+
+		for (int j = 0; j < inputSize.width; j++) {
+			int dj = j / scale;
+
+			for (int d = 0; d < inputSize.deep; d++)
+				prevDeltas(d, i, j) *= maxIndexes(d, i, j) * deltas(d, di, dj);
+		}
+	}
 }
 
 // сохранение слоя в файл

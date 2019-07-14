@@ -50,7 +50,7 @@ public:
 
 	void Forward(const Volume& input); // прямое распространение
 	void Backward(Volume& prevDeltas); // обратное распространение
-	void UpdateWeights(const Optimizer& optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer& optimizer, const Volume& input); // обновление весовых коэффициентов
 	
 	void ResetCache(); // сброс параметров
 	void Save(std::ostream &f); // сохранение слоя в файл
@@ -194,10 +194,6 @@ int FullConnectedLayer::GetTrainableParams() const {
 // прямое распространение
 void FullConnectedLayer::Forward(const Volume& input) {
 	#pragma omp parallel for
-	for (int i = 0; i < inputs; i++)
-		this->input(i, 0, 0) = input(i, 0, 0);
-
-	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
 		double sum = biases[i];
 
@@ -225,7 +221,7 @@ void FullConnectedLayer::Backward(Volume& prevDeltas) {
 }
 
 // обновление весовых коэффициентов
-void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer) {
+void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer, const Volume& input) {
 	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
 		double delta = deltas(i, 0, 0);
