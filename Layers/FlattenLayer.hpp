@@ -38,9 +38,9 @@ int FlattenLayer::GetTrainableParams() const {
 void FlattenLayer::Forward(const Volume& input) {
 	int index = 0;
 
-	for (int d = 0; d < inputSize.deep; d++) {
-		for (int i = 0; i < inputSize.height; i++) {
-			for (int j = 0; j < inputSize.width; j++) {
+	for (int i = 0; i < inputSize.height; i++) {
+		for (int j = 0; j < inputSize.width; j++) {
+			for (int d = 0; d < inputSize.deep; d++) {
 				deltas(index, 0, 0) = 1;
 				output(index++, 0, 0) = input(d, i, j);
 			}
@@ -52,9 +52,9 @@ void FlattenLayer::Forward(const Volume& input) {
 void FlattenLayer::Backward(Volume& prevDeltas) {
 	int index = 0;
 
-	for (int d = 0; d < inputSize.deep; d++)
-		for (int i = 0; i < inputSize.height; i++)
-			for (int j = 0; j < inputSize.width; j++)
+	for (int i = 0; i < inputSize.height; i++)
+		for (int j = 0; j < inputSize.width; j++)
+			for (int d = 0; d < inputSize.deep; d++)
 				prevDeltas(d, i, j) *= deltas(index++, 0, 0);
 }
 

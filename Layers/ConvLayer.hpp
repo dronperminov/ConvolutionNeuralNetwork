@@ -6,11 +6,19 @@
 #include <vector>
 #include "NetworkLayer.hpp"
 
+enum class Padding {
+	Full,
+	Same,
+	Valid
+};
+
 class ConvLayer : public NetworkLayer {
 	std::vector<Volume> filters; // фильтры
 	std::vector<Volume> dws; // изменения фильтров
+	std::vector<Volume> dwws; // дополнительные изменения фильтров
 	std::vector<double> biases; // смещения
 	std::vector<double> db; // изменения смещений
+	std::vector<double> dbb; // дополнительные изменения смещений
 
 	int P; // дополнение нулями
 	int S; // шаг свёртки
@@ -52,9 +60,11 @@ ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int
 	for (int i = 0; i < fc; i++) {
 		filters.push_back(Volume(fs, fs, fd));
 		dws.push_back(Volume(fs, fs, fd));
+		dwws.push_back(Volume(fs, fs, fd));
 
 		biases.push_back(0);
 		db.push_back(0);
+		dbb.push_back(0);
 
 		filters[i].FillRandom(random, sqrt(2.0 / (fs * fs * fd)));
 		biases[i] = 0.01;
@@ -76,9 +86,11 @@ ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int
 	for (int index = 0; index < fc; index++) {
 		filters.push_back(Volume(fs, fs, fd));
 		dws.push_back(Volume(fs, fs, fd));
+		dwws.push_back(Volume(fs, fs, fd));
 		
 		biases.push_back(0);
 		db.push_back(0);
+		dbb.push_back(0);
 
 		std::string filter;
 		f >> filter;
@@ -113,27 +125,25 @@ void ConvLayer::Forward(const Volume& input) {
 	// выполняем свёртку с каждым фильтром
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
-		Volume &filter = filters[index];
-
 		for (int y = 0, y0 = -P; y < outputSize.height; y++, y0 += S) {
+			int imin = std::max(-y0, 0);
+			int imax = std::min(fs, inputSize.height - y0);
+
 			for (int x = 0, x0 = -P; x < outputSize.width; x++, x0 += S) {
+				int jmin = std::max(-x0, 0);
+				int jmax = std::min(fs, inputSize.width - x0);
+
 				double sum = biases[index]; // значение элемента ij результирующей матрицы
 
 				// проходимся по всем значениям фильтра
-				for (int i = 0; i < fs; i++) {
+				for (int i = imin; i < imax; i++) {
 					int i0 = y0 + i;
 
-					if (i0 < 0 || i0 >= inputSize.height)
-						continue;
-
-					for (int j = 0; j < fs; j++) {
+					for (int j = jmin; j < jmax; j++) {
 						int j0 = x0 + j;
 
-						if (j0 < 0 || j0 >= inputSize.width)
-							continue;
-
 						for (int k = 0; k < fd; k++) {
-							double weight = filter(k, i, j); // значение фильтра
+							double weight = filters[index](k, i, j); // значение фильтра
 							double value = input(k, i0, j0); // значение входного объёма
 
 							sum += weight * value; // прибавляем взвешенное произведение
@@ -158,25 +168,25 @@ void ConvLayer::Forward(const Volume& input) {
 
 // обратное распространение
 void ConvLayer::Backward(Volume& prevDeltas) {
-	int P = this->P + fs - 1;
+	int P = fs - 1 - this->P;
 
 	#pragma omp parallel for
 	for (int d = 0; d < inputSize.deep; d++) {
 		for (int y = 0, y0 = -P; y < inputSize.height; y++, y0 += S) {
+			int imin = std::max(-y0, 0);
+			int imax = std::min(fs, outputSize.height - y0);
+
 			for (int x = 0, x0 = -P; x < inputSize.width; x++, x0 += S) {
+				int jmin = std::max(-x0, 0);
+				int jmax = std::min(fs, outputSize.width - x0);
+
 				double sum = 0; // значение элемента ij результирующей матрицы
 
-				for (int i = 0; i < fs; i++) {
+				for (int i = imin; i < imax; i++) {
 					int i0 = y0 + i;
 
-					if (i0 < 0 || i0 >= outputSize.height)
-						continue;
-
-					for (int j = 0; j < fs; j++) {
+					for (int j = jmin; j < jmax; j++) {
 						int j0 = x0 + j;
-
-						if (j0 < 0 || j0 >= outputSize.width)
-							continue;
 
 						for (int k = 0; k < fc; k++) {
 							double weight = filters[k](d, fs - 1 - i, fs - 1 - j); // значение фильтра
@@ -198,42 +208,42 @@ void ConvLayer::Backward(Volume& prevDeltas) {
 void ConvLayer::UpdateWeights(const Optimizer& optimizer, const Volume& input) {
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
-		for (int d = 0; d < fd; d++) {
-			for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
-				for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
+		for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
+			int imin = std::max(-y0, 0);
+			int imax = std::min(outputSize.height, inputSize.height - y0);
+
+			for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
+				int jmin = std::max(-x0, 0);
+				int jmax = std::min(outputSize.width, inputSize.width - x0);
+
+				for (int d = 0; d < fd; d++) {
 					double sum = 0;
 
-					for (int i = 0; i < outputSize.height; i++) {
+					for (int i = imin; i < imax; i++) {
 						int i0 = y0 + i;
 
-						if (i0 < 0 || i0 >= inputSize.height)
-							continue;
-
-						for (int j = 0; j < outputSize.width; j++) {
+						for (int j = jmin; j < jmax; j++) {
 							int j0 = x0 + j;
 
-							// если находимся внутри исходного объёма
-							if (j0 >= 0 && j0 < inputSize.width) {
-								double weight = deltas(index, i, j); // значение фильтра
-								double value = input(d, i0, j0); // значение входного объёма
+							double weight = deltas(index, i, j); // значение фильтра
+							double value = input(d, i0, j0); // значение входного объёма
 
-								sum += weight * value; // прибавляем взвешенное произведение
-							}
+							sum += weight * value; // прибавляем взвешенное произведение
 						}
 					}
 
-					optimizer.Update(sum, dws[index](d, y, x), filters[index](d, y, x));
+					optimizer.Update(sum, dws[index](d, y, x), dwws[index](d, y, x), filters[index](d, y, x));
 				}
 			}
 		}
 
 		double dbi = 0;
-
+		
 		for (int i = 0; i < outputSize.height; i++)
 			for (int j = 0; j < outputSize.width; j++)
 				dbi += deltas(index, i, j);
 
-		optimizer.Update(dbi, db[index], biases[index]);
+		optimizer.Update(dbi, db[index], dbb[index], biases[index]);
 	}
 }
 
@@ -266,7 +276,6 @@ void ConvLayer::Save(std::ostream &f) {
 		f << " " << std::setprecision(15) << biases[index] << std::endl;
 	}
 }
-
 
 // установка веса фильтра
 void ConvLayer::SetFilter(int index, int d, int i, int j, double weight) {

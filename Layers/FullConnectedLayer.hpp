@@ -23,8 +23,11 @@ class FullConnectedLayer : public NetworkLayer {
 
 	Matrix weights; // веса
 	Matrix dw; // изменение весов
+	Matrix dww; // дполнительное изменение весов
+
 	std::vector<double> biases; // смещения
 	std::vector<double> db; // изменение смещений
+	std::vector<double> dbb; // дополнительное изменение смещений
 
 	double (*activation)(double); // активационная функция
 	double (*derivative)(double); // производная активационной функции
@@ -113,8 +116,8 @@ double FullConnectedLayer::ReLUDerivative(double y) {
 
 FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::string& type) :
 	NetworkLayer(1, 1, inputs, 1, 1, outputs),
-	weights(outputs, inputs), dw(outputs, inputs),
-	biases(outputs), db(outputs) {
+	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs),
+	biases(outputs), db(outputs), dbb(outputs) {
 	
 	this->inputs = inputs;
 	this->outputs = outputs;
@@ -142,8 +145,8 @@ FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::strin
 
 // загрузка слоя из файла
 FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(1, 1, inputs, 1, 1, outputs),
-	weights(outputs, inputs), dw(outputs, inputs),
-	biases(outputs), db(outputs) {
+	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs),
+	biases(outputs), db(outputs), dbb(outputs) {
 
 	this->inputs = inputs;
 	this->outputs = outputs;
@@ -227,9 +230,9 @@ void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer, const Volume&
 		double delta = deltas(i, 0, 0);
 
 		for (int j = 0; j < inputs; j++)
-			optimizer.Update(delta * input(j, 0, 0), dw(i, j), weights(i, j));
+			optimizer.Update(delta * input(j, 0, 0), dw(i, j), dww(i, j), weights(i, j));
 	
-		optimizer.Update(delta, db[i], biases[i]);
+		optimizer.Update(delta, db[i], dbb[i], biases[i]);
 	}
 }
 
@@ -237,10 +240,13 @@ void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer, const Volume&
 void FullConnectedLayer::ResetCache() {
 	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
-		for (int j = 0; j < inputs; j++)
+		for (int j = 0; j < inputs; j++) {
 			dw(i, j) = 0;
+			dww(i, j) = 0;
+		}
 
 		db[i] = 0;
+		dbb[i] = 0;
 	}
 }
 
