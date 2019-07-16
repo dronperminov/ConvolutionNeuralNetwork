@@ -16,6 +16,7 @@ public:
 
 private:
 	std::vector<std::string> labels; // метки классов
+	std::vector<int> statistics; // статистика обучающей выборки
 	VolumeSize inputSize; // размер входа
 
 	std::vector<std::string> SplitByChar(const std::string s, char c = ',') const; // разбиение строки по символу
@@ -30,6 +31,8 @@ public:
 	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData = 100);
 
 	double Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount = -1); // проверка точности предсказаний сети
+	void Predict(CNN &cnn, const std::string &testPath, const std::string &predictPath, const std::string &msg = "id,label"); // предсказание сети
+	void PrintStats() const; // вывод статистики обучающей выборки
 };
 
 // разбиение строки по символу
@@ -87,7 +90,7 @@ Volume DataLoader::GetVolume(const std::vector<std::string> &args, int start) {
 	for (int i = 0; i < inputSize.height; i++)
 		for (int j = 0; j < inputSize.width; j++)
 			for (int d = 0; d < inputSize.deep; d++)
-				input(d, i, j) = std::stod(args[index++]) / 256.0;
+				input(d, i, j) = std::stod(args[index++]) / 255.0;
 
 	return input;
 }
@@ -113,13 +116,18 @@ void DataLoader::ReadTrain(const std::string &trainPath, int maxTrainData) {
 		if (label == -1)
 			throw std::runtime_error("Unknown label");
 
+		statistics[label]++;
+
 		trainInputData.push_back(GetVolume(args));
+
 		Volume output(1, 1, labels.size());
 
-		for (int i = 0; i < labels.size(); i++)
+		for (size_t i = 0; i < labels.size(); i++)
 			output(i, 0, 0) = label == i ? 1 : 0;
 		
 		trainOutputData.push_back(output);
+
+		std::cout << "Succesfully loaded " << trainInputData.size() << " train samples\r";
 	}
 
 	f.close();
@@ -136,8 +144,10 @@ void DataLoader::ReadLabels(const std::string& path) {
 
 	labels.clear();
 
-	while (std::getline(f, line))
+	while (std::getline(f, line)) {
 		labels.push_back(line);
+		statistics.push_back(0);
+	}
 
 	f.close();
 
@@ -145,12 +155,11 @@ void DataLoader::ReadLabels(const std::string& path) {
 }
 
 DataLoader::DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData) {
-	ReadLabels(labelsPath);
-
 	inputSize.width = width;
 	inputSize.height = height;
 	inputSize.deep = deep;
 
+	ReadLabels(labelsPath);
 	ReadTrain(trainPath, maxTrainData); // формируем обучающую выборку
 	std::cout << "Succesfully loaded " << trainInputData.size() << " train samples" << std::endl;
 }
@@ -188,4 +197,41 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 	std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%            " << std::endl;
 
 	return (double)correct / total;
+}
+
+// предсказание сети
+void DataLoader::Predict(CNN &cnn, const std::string &testPath, const std::string &predictPath, const std::string &msg) {
+	std::ifstream f(testPath.c_str());
+	std::ofstream out(predictPath.c_str());
+	std::string line;
+
+	std::getline(f, line);
+
+	int total = 0;
+
+	out << msg << std::endl;
+
+	while (std::getline(f, line)) {
+		std::vector<std::string> args = SplitByChar(line, ',');
+		total++;
+
+		Volume input = GetVolume(args, 0);
+		int index = GetOutputIndex(cnn, input);
+
+		out << total << "," << labels[index] << std::endl;
+		std::cout << total << ": " << labels[index] << "               \r";
+	}
+
+	f.close();
+	out.close();
+}
+
+// вывод статистики обучающей выборки
+void DataLoader::PrintStats() const {
+	std::cout << "Train dataset statistics:" << std::endl;
+
+	for (size_t i = 0; i < labels.size(); i++)
+		std::cout << "Label counts of [" << i << "] (" << labels[i] << "): " << statistics[i] << std::endl;
+
+	std::cout << "============================================================================================" << std::endl;
 }

@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cassert>
 
-#include "Layers/ConvLayer.hpp"
-#include "Layers/MaxPoolingLayer.hpp"
-#include "Layers/FlattenLayer.hpp"
-#include "Layers/FullConnectedLayer.hpp"
+#include "../Layers/ConvLayer.hpp"
+#include "../Layers/MaxPoolingLayer.hpp"
+#include "../Layers/FlattenLayer.hpp"
+#include "../Layers/FullConnectedLayer.hpp"
 
 using namespace std;
 

@@ -16,13 +16,21 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::milliseconds ms;
 
+enum class ErrorType {
+	MSE, // среднеквадратичное отклонение
+	CrossEntropy // перекрёстная этнропия
+};
+
 class CNN {
 	VolumeSize inputSize; // размер входного объёма
 	VolumeSize outputSize; // размер выходного объёма
 
 	std::vector<NetworkLayer *> layers; // слои сети
 
+	double (CNN::*cost)(const Volume&, const Volume&); // указатель на функцию стоимости
+
 	double MSE(const Volume& y, const Volume& t); // среднеквадратичное отклонение
+	double CrossEntropy(const Volume &y, const Volume &t); // перекрёстная энтропия
 
 public:
 	CNN(int width, int height, int deep); // инициализация сети
@@ -33,7 +41,7 @@ public:
 	void PringConfig() const; // вывод конфигурации
 
 	void AddLayer(const std::string& layerConf); // добавление слоя по текстовому описанию
-	void Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int maxEpochs, const Optimizer &optimizer);
+	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int maxEpochs, const Optimizer &optimizer, ErrorType errorType = ErrorType::MSE, int logPeriod = 100);
 	void Save(const std::string &path); // сохранение сети в файл
 };
 
@@ -49,6 +57,27 @@ double CNN::MSE(const Volume& y, const Volume& t) {
 				double e = y(d, i, j) - t(d, i, j); // находим разность между выходом сети и обучающим примером
 				layers[last]->GetDeltas()(d, i, j) *= e; // умножаем на неё дельту выходного слоя
 				error += e * e; // прибавляем квадрат разности
+			}
+		}
+	}
+
+	return error;
+}
+
+// перекрётсная энтропия
+double CNN::CrossEntropy(const Volume &y, const Volume &t) {
+	double error = 0;
+	size_t last = layers.size() - 1;
+
+	for (int d = 0; d < outputSize.deep; d++) {
+		for (int i = 0; i < outputSize.height; i++) {
+			for (int j = 0; j < outputSize.width; j++) {
+				double yi = y(d, i, j);
+				double ti = t(d, i, j);
+
+				error -= ti * log(yi + 1e-14) + (1 - ti) * log(1 - yi + 1e-14);
+
+				layers[last]->GetDeltas()(d, i, j) *= (yi - ti) / (yi * (1 - yi));
 			}
 		}
 	}
@@ -120,6 +149,7 @@ CNN::CNN(const std::string& path) {
 	}
 
 	outputSize = layers[layers.size() - 1]->GetOutputSize();
+	std::cout << "CNN succesfully loaded from '" << path << "'" << std::endl;
 }
 
 // получение выходного объёма
@@ -199,13 +229,21 @@ void CNN::AddLayer(const std::string& layerConf) {
 }
 
 // обучение сети
-void CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int maxEpochs, const Optimizer& optimizer) {
+double CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int maxEpochs, const Optimizer& optimizer, ErrorType errorType, int logPeriod) {
 	size_t last = layers.size() - 1;
+	double error = 0;
+
+	if (errorType == ErrorType::MSE) {
+		cost = MSE;
+	}
+	else if (errorType == ErrorType::CrossEntropy) {
+		cost = CrossEntropy;
+	}
 
 	for (int epoch = 0; epoch < maxEpochs; epoch++) {
 		auto t0 = Time::now();
 
-		double error = 0;
+		error = 0;
 
 		// сбрасываем все накопления
 		for (size_t i = 0; i < layers.size(); i++)
@@ -219,7 +257,7 @@ void CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> 
 			for (size_t i = 1; i < layers.size(); i++)
 				layers[i]->Forward(layers[i - 1]->GetOutput());
 
-			error += MSE(layers[last]->GetOutput(), outputData[index]); // находим ошибку сети
+			error += (this->*cost)(layers[last]->GetOutput(), outputData[index]); // находим ошибку сети
 
 			// распространяем ошибку по слоям обратно и обновляем весовые коэффициенты слоёв
 			for (size_t i = last; i > 0; i--) {
@@ -229,11 +267,26 @@ void CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> 
 
 			layers[0]->UpdateWeights(optimizer, inputData[index]);
 
-			ms d = std::chrono::duration_cast<ms>(Time::now() - t0);
-			double dt = d.count() / (index + 1.0);
-			double t = (inputData.size()/* - index - 1*/) * dt;
+			if ((index + 1) % logPeriod == 0) {
+				ms d = std::chrono::duration_cast<ms>(Time::now() - t0);
+				double dt = d.count() / (index + 1.0);
+				double t = (inputData.size() - index - 1) * dt;
 
-			std::cout << index + 1 << " / " << inputData.size() << ", left: " << TimeSpan(t) << ", error: " << error << "\r";
+				std::cout << index + 1 << " / " << inputData.size();
+				std::cout << " [";
+				int k = 30 * (index + 1) / inputData.size();
+
+				for (int i = 0; i < k - 1; i++)
+					std::cout << "=";
+
+				std::cout << ">";
+
+				for (int i = k; i < 30; i++)
+					std::cout << ".";
+
+				std::cout << "] - ";
+				std::cout << "left: " << TimeSpan(t) << ", error: " << error << "\r";
+			}
 		}
 
 		auto t1 = Time::now();
@@ -243,9 +296,11 @@ void CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume> 
 		std::cout << "error: " << error << " ";
 		optimizer.Print();
 
-		std::cout << " elapsed: " << TimeSpan(d.count()) << "ms";
+		std::cout << " elapsed: " << TimeSpan(d.count()) << "ms                       ";
 		std::cout << std::endl;
 	}
+
+	return error;
 }
 
 // сохранение сети в файл
