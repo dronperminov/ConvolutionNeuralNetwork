@@ -131,6 +131,7 @@ void DataLoader::ReadTrain(const std::string &trainPath, int maxTrainData) {
 	}
 
 	f.close();
+	std::cout << "Succesfully loaded " << trainInputData.size() << " train samples" << std::endl;
 }
 
 // считывание меток классов
@@ -161,7 +162,6 @@ DataLoader::DataLoader(const std::string &trainPath, int width, int height, int 
 
 	ReadLabels(labelsPath);
 	ReadTrain(trainPath, maxTrainData); // формируем обучающую выборку
-	std::cout << "Succesfully loaded " << trainInputData.size() << " train samples" << std::endl;
 }
 
 double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount) {
@@ -189,14 +189,16 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 		if (index == label)
 			correct++;
 
-		std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%               \r";
+		if (msg.length())
+			std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%               \r";
 	}
 
 	f.close();
 
-	std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%            " << std::endl;
+	if (msg.length())
+		std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%            " << std::endl;
 
-	return (double)correct / total;
+	return 100.0 * correct / total;
 }
 
 // предсказание сети

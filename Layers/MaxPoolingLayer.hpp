@@ -7,6 +7,8 @@
 class MaxPoolingLayer : public NetworkLayer {
 	int scale; // коэффициент пулинга
 	Volume maxIndexes; // маска максимальных индексов
+	std::vector<int> di;
+	std::vector<int> dj;
 
 public:
 	MaxPoolingLayer(int width, int height, int deep, int scale = 2);
@@ -21,17 +23,23 @@ public:
 
 MaxPoolingLayer::MaxPoolingLayer(int width, int height, int deep, int scale) :
 	NetworkLayer(width, height, deep, width / scale, height / scale, deep),
-	maxIndexes(width, height, deep)
+	maxIndexes(width, height, deep), di(height), dj(width)
 {
 	if (width % scale != 0 || height % scale != 0)
 		throw std::runtime_error("Unable creating maxpool layer with this scale");
 
 	this->scale = scale;
+
+	for (int i = 0; i < height; i++)
+		di[i] = i / scale;
+
+	for (int i = 0; i < width; i++)
+		dj[i] = i / scale;
 }
 
 // вывод конфигурации
 void MaxPoolingLayer::PrintConfig() const {
-	std::cout << "|     max pooling layer    | ";
+	std::cout << "| max pooling    | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << "           0 | ";
@@ -45,10 +53,10 @@ int MaxPoolingLayer::GetTrainableParams() const {
 
 // прямое распространение
 void MaxPoolingLayer::Forward(const Volume& input) {
-	#pragma omp parallel for
+	#pragma omp parallel for collapse(3)
 	for (int d = 0; d < inputSize.deep; d++) {
-		for (int i = 0, i1 = 0; i < inputSize.height; i += scale, i1++) {
-			for (int j = 0, j1 = 0; j < inputSize.width; j += scale, j1++) {
+		for (int i = 0; i < inputSize.height; i += scale) {
+			for (int j = 0; j < inputSize.width; j += scale) {
 				int imax = i;
 				int jmax = j;
 				double max = input(d, i, j);
@@ -56,8 +64,8 @@ void MaxPoolingLayer::Forward(const Volume& input) {
 				int dx = j + scale;
 				int dy = i + scale;
 
-				for (int x = j; x < dx; x++) {
-					for (int y = i; y < dy; y++) {
+				for (int y = i; y < dy; y++) {
+					for (int x = j; x < dx; x++) {
 						double value = input(d, y, x);
 						maxIndexes(d, y, x) = 0;
 
@@ -69,6 +77,9 @@ void MaxPoolingLayer::Forward(const Volume& input) {
 					}
 				}
 
+				int i1 = di[i];
+				int j1 = dj[j];
+
 				output(d, i1, j1) = max;
 				deltas(d, i1, j1) = 1;
 				maxIndexes(d, imax, jmax) = 1;
@@ -79,17 +90,11 @@ void MaxPoolingLayer::Forward(const Volume& input) {
 
 // обратное распространение
 void MaxPoolingLayer::Backward(Volume& prevDeltas) {
-	#pragma omp parallel for
-	for (int i = 0; i < inputSize.height; i++) {
-		int di = i / scale;
-
-		for (int j = 0; j < inputSize.width; j++) {
-			int dj = j / scale;
-
-			for (int d = 0; d < inputSize.deep; d++)
-				prevDeltas(d, i, j) *= maxIndexes(d, i, j) * deltas(d, di, dj);
-		}
-	}
+	#pragma omp parallel for collapse(3)
+	for (int d = 0; d < inputSize.deep; d++)
+		for (int i = 0; i < inputSize.height; i++)
+			for (int j = 0; j < inputSize.width; j++)
+				prevDeltas(d, i, j) *= maxIndexes(d, i, j) * deltas(d, di[i], dj[j]);
 }
 
 // сохранение слоя в файл

@@ -9,14 +9,15 @@
 #include "../Entities/Matrix.hpp"
 #include "NetworkLayer.hpp"
 
-// тип активационной функции
-enum class ActivationType {
-	Sigmoid,
-	Tanh,
-	ReLU
-};
-
 class FullConnectedLayer : public NetworkLayer {
+	// тип активационной функции
+	enum class ActivationType {
+		None,
+		Sigmoid,
+		Tanh,
+		ReLU
+	};
+
 	int inputs; // число входов
 	int outputs; // число выходов
 	ActivationType activationType; // тип активационной функции
@@ -24,25 +25,23 @@ class FullConnectedLayer : public NetworkLayer {
 	Matrix weights; // веса
 	Matrix dw; // изменение весов
 	Matrix dww; // дполнительное изменение весов
+	Matrix gradWeights; // градиенты весовых коэффициентов
 
 	std::vector<double> biases; // смещения
 	std::vector<double> db; // изменение смещений
 	std::vector<double> dbb; // дополнительное изменение смещений
-
-	double (*activation)(double); // активационная функция
-	double (*derivative)(double); // производная активационной функции
+	std::vector<double> gradBiases; // градиенты смещений
 
 	ActivationType GetActivationType(const std::string& type) const; // получение типа активационной функции по строке
 	std::string GetActivationType() const; // получение строки для активационной функции
 
-	static double Sigmoid(double x);
-	static double SigmoidDerivative(double y);
+	void ActivateReLU(int i, double value);
+	void ActivateSigmoid(int i, double value);
+	void ActivateTanh(int i, double value);
+	void ActivateNone(int i, double value);
 
-	static double Tangent(double x);
-	static double TangentDerivative(double y);
-
-	static double ReLU(double x);
-	static double ReLUDerivative(double y);
+	void (FullConnectedLayer::*Activate)(int, double);
+	void SetActivationFunction();
 
 public:
 	FullConnectedLayer(int inputs, int outputs, const std::string& type = "sigmoid");
@@ -55,15 +54,65 @@ public:
 	void Backward(Volume& prevDeltas); // обратное распространение
 	void UpdateWeights(const Optimizer& optimizer, const Volume& input); // обновление весовых коэффициентов
 	
+	void CalculateGradients(const Volume &input); // вычисление градиентов
+	void UpdateWeights(const Optimizer& optimizer, int batchSize); // обновление весовых коэффициентов
+	
 	void ResetCache(); // сброс параметров
 	void Save(std::ostream &f); // сохранение слоя в файл
 
 	void SetWeight(int i, int j, double weight); // установка веса
 	void SetBias(int i, double bias); // установка смещения
+
+	void SetParam(int index, double weight); // установка веса по индексу
+	double GetParam(int index) const; // получение веса по индексу
+	double GetGradient(int index, const Volume &input) const; // получение градиента веса по индексу
 };
 
+void FullConnectedLayer::ActivateNone(int i, double value) {
+	output[i] = value;
+	deltas[i] = 1;
+}
+
+void FullConnectedLayer::ActivateReLU(int i, double value) {
+	if (value > 0) {
+		output[i] = value;
+		deltas[i] = 1;
+	}
+	else {
+		output[i] = 0;
+		deltas[i] = 0;	
+	}
+}
+
+void FullConnectedLayer::ActivateSigmoid(int i, double value) {
+	value = 1 / (1 + exp(-value));
+	output[i] = value;
+	deltas[i] = value * (1 - value);
+}
+
+void FullConnectedLayer::ActivateTanh(int i, double value) {
+	value = tanh(value);
+	output[i] = value;
+	deltas[i] = 1 - value * value;
+}
+
+void FullConnectedLayer::SetActivationFunction() {
+	if (activationType == ActivationType::None) {
+		Activate = ActivateNone;
+	}
+	else if (activationType == ActivationType::ReLU) {
+		Activate = ActivateReLU;
+	}
+	else if (activationType == ActivationType::Sigmoid) {
+		Activate = ActivateSigmoid;
+	}
+	else if (activationType == ActivationType::Tanh) {
+		Activate = ActivateTanh;
+	}
+}
+
 // получение типа активационной функции по строке
-ActivationType FullConnectedLayer::GetActivationType(const std::string& type) const {
+FullConnectedLayer::ActivationType FullConnectedLayer::GetActivationType(const std::string& type) const {
 	if (type == "sigmoid")
 		return ActivationType::Sigmoid;
 	
@@ -72,7 +121,10 @@ ActivationType FullConnectedLayer::GetActivationType(const std::string& type) co
 	
 	if (type == "relu")
 		return ActivationType::ReLU;
-	
+
+	if (type == "none" || type == "")
+		return ActivationType::None;
+
 	throw std::runtime_error("Invalid activation function");
 }
 
@@ -86,56 +138,23 @@ std::string FullConnectedLayer::GetActivationType() const {
 	
 	if (activationType == ActivationType::ReLU)
 		return "relu";
+
+	if (activationType == ActivationType::None)
+		return "none";
 	
 	throw std::runtime_error("Invalid activation function");
 }
 
-double FullConnectedLayer::Sigmoid(double x) {
-	return 1.0 / (1 + exp(-x));
-}
-
-double FullConnectedLayer::SigmoidDerivative(double y) {
-	return y * (1 - y);
-}
-
-double FullConnectedLayer::Tangent(double x) {
-	return tanh(x);
-}
-
-double FullConnectedLayer::TangentDerivative(double y) {
-	return 1 - y * y;
-}
-
-double FullConnectedLayer::ReLU(double x) {
-	return x > 0 ? x : 0;
-}
-
-double FullConnectedLayer::ReLUDerivative(double y) {
-	return y > 0 ? 1 : 0;
-}
-
 FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::string& type) :
 	NetworkLayer(1, 1, inputs, 1, 1, outputs),
-	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs),
-	biases(outputs), db(outputs), dbb(outputs) {
+	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs), gradWeights(outputs, inputs),
+	biases(outputs), db(outputs), dbb(outputs), gradBiases(outputs) {
 	
 	this->inputs = inputs;
 	this->outputs = outputs;
 
 	activationType = GetActivationType(type);
-
-	if (activationType == ActivationType::Sigmoid) {
-		activation = Sigmoid;
-		derivative = SigmoidDerivative;
-	}
-	else if (activationType == ActivationType::Tanh) {
-		activation = Tangent;
-		derivative = TangentDerivative;
-	}
-	else if (activationType == ActivationType::ReLU) {
-		activation = ReLU;
-		derivative = ReLUDerivative;
-	}
+	SetActivationFunction();
 
 	weights.FillRandom(random, sqrt(2.0 / inputs));
 
@@ -144,27 +163,16 @@ FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::strin
 }
 
 // загрузка слоя из файла
-FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(1, 1, inputs, 1, 1, outputs),
-	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs),
-	biases(outputs), db(outputs), dbb(outputs) {
+FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::string& type, std::ifstream &f) :
+	NetworkLayer(1, 1, inputs, 1, 1, outputs),
+	weights(outputs, inputs), dw(outputs, inputs), dww(outputs, inputs), gradWeights(outputs, inputs),
+	biases(outputs), db(outputs), dbb(outputs), gradBiases(outputs) {
 
 	this->inputs = inputs;
 	this->outputs = outputs;
 
 	activationType = GetActivationType(type);
-	
-	if (activationType == ActivationType::Sigmoid) {
-		activation = Sigmoid;
-		derivative = SigmoidDerivative;
-	}
-	else if (activationType == ActivationType::Tanh) {
-		activation = Tangent;
-		derivative = TangentDerivative;
-	}
-	else if (activationType == ActivationType::ReLU) {
-		activation = ReLU;
-		derivative = ReLUDerivative;
-	}
+	SetActivationFunction();
 
 	for (int i = 0; i < outputs; i++)
 		for (int j = 0; j < inputs; j++)
@@ -182,11 +190,16 @@ FullConnectedLayer::FullConnectedLayer(int inputs, int outputs, const std::strin
 
 // вывод конфигурации
 void FullConnectedLayer::PrintConfig() const {
-	std::cout << "|   full connected layer   | ";
+	std::cout << "| full connected | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << (outputs * (inputs + 1)) << " | ";
-	std::cout << outputs << " neurons, f: " << GetActivationType() << std::endl;
+	std::cout << std::setw(12) << GetTrainableParams() << " | ";
+	std::cout << outputs << " neurons";
+
+	if (activationType != ActivationType::None)
+		std::cout << ", f: " << GetActivationType();
+
+	std::cout << std::endl;
 }
 
 // получение количество обучаемых параметров
@@ -201,12 +214,9 @@ void FullConnectedLayer::Forward(const Volume& input) {
 		double sum = biases[i];
 
 		for (int j = 0; j < inputs; j++)
-			sum += weights(i, j) * input(j, 0, 0);
+			sum += weights(i, j) * input[j];
 
-		sum = activation(sum);
-
-		deltas(i, 0, 0) = derivative(sum);
-		output(i, 0, 0) = sum;
+		(this->*Activate)(i, sum);
 	}
 }
 
@@ -217,9 +227,9 @@ void FullConnectedLayer::Backward(Volume& prevDeltas) {
 		double sum = 0;
 
 		for (int j = 0; j < outputs; j++)
-			sum += weights(j, i) * deltas(j, 0, 0);
+			sum += weights(j, i) * deltas[j];
 
-		prevDeltas(i, 0, 0) *= sum;
+		prevDeltas[i] *= sum;
 	}
 }
 
@@ -227,12 +237,40 @@ void FullConnectedLayer::Backward(Volume& prevDeltas) {
 void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer, const Volume& input) {
 	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
-		double delta = deltas(i, 0, 0);
+		double delta = deltas[i];
 
 		for (int j = 0; j < inputs; j++)
-			optimizer.Update(delta * input(j, 0, 0), dw(i, j), dww(i, j), weights(i, j));
+			optimizer.Update(delta * input[j], dw(i, j), dww(i, j), weights(i, j));
 	
 		optimizer.Update(delta, db[i], dbb[i], biases[i]);
+	}
+}
+
+
+// вычисление градиентов
+void FullConnectedLayer::CalculateGradients(const Volume &input) {
+	#pragma omp parallel for
+	for (int i = 0; i < outputs; i++) {
+		double delta = deltas[i];
+
+		for (int j = 0; j < inputs; j++)
+			gradWeights(i, j) += delta * input[j];
+		
+		gradBiases[i] += delta;
+	}
+}
+
+// обновление весовых коэффициентов
+void FullConnectedLayer::UpdateWeights(const Optimizer& optimizer, int batchSize) {
+	#pragma omp parallel for
+	for (int i = 0; i < outputs; i++) {
+		for (int j = 0; j < inputs; j++) {
+			optimizer.Update(gradWeights(i, j) / batchSize, dw(i, j), dww(i, j), weights(i, j));
+			gradWeights(i, j) = 0;
+		}
+		
+		optimizer.Update(gradBiases[i] / batchSize, db[i], dbb[i], biases[i]);
+		gradBiases[i] = 0;
 	}
 }
 
@@ -279,4 +317,33 @@ void FullConnectedLayer::SetWeight(int i, int j, double weight) {
 // установка мещения
 void FullConnectedLayer::SetBias(int i, double bias) {
 	biases[i] = bias;
+}
+
+// установка веса по индексу
+void FullConnectedLayer::SetParam(int index, double weight) {
+	int i = index / (inputs + 1);
+	int j = index % (inputs + 1);
+
+	if (j < inputs) {
+		weights(i, j) = weight;
+	}
+	else {
+		biases[i] = weight;
+	}
+}
+
+// получение веса по индексу
+double FullConnectedLayer::GetParam(int index) const {
+	int i = index / (inputs + 1);
+	int j = index % (inputs + 1);
+
+	return j < inputs ? weights(i, j) : biases[i];
+}
+
+// получение градиента веса по индексу
+double FullConnectedLayer::GetGradient(int index, const Volume &input) const {
+	int i = index / (inputs + 1);
+	int j = index % (inputs + 1);
+
+	return deltas[i] * (j < inputs ? input[j] : 1);
 }

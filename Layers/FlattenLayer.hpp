@@ -22,7 +22,7 @@ FlattenLayer::FlattenLayer(int width, int height, int deep) : NetworkLayer(width
 
 // вывод конфигурации
 void FlattenLayer::PrintConfig() const {
-	std::cout << "|      flatten layer       | ";
+	std::cout << "| flatten        | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << "           0 | ";

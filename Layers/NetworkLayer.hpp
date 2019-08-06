@@ -31,8 +31,15 @@ public:
 	virtual void Backward(Volume& prevDeltas) = 0; // обратное распространение
 	virtual void UpdateWeights(const Optimizer& optimizer, const Volume& input) {} // обновление весовых коэффициентов
 	
+	virtual void CalculateGradients(const Volume &input) {}; // вычисление градиентов
+	virtual void UpdateWeights(const Optimizer& optimizer, int batchSize) {} // обновление весовых коэффициентов
+	
 	virtual void ResetCache() {} // сброс параметров
 	virtual void Save(std::ostream &f) = 0; // сохранение слоя в файл
+
+	virtual void SetParam(int index, double weight) { }
+	virtual double GetParam(int index) const {return 0; }
+	virtual double GetGradient(int index, const Volume &input) const { return 0; }
 };
 
 NetworkLayer::NetworkLayer(int inputWidth, int inputHeight, int inputDeep, int outputWidth, int outputHeight, int outputDeep) :

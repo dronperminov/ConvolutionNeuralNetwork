@@ -17,26 +17,29 @@ int main() {
 
 	int trainCount = 60000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.004; // скорость обучения
+	double learningRate = 0.0015; // скорость обучения
+	int batchSize = 64; // размер батча
 	int maxEpochs = 20; // число эпох обучения
 
 	CNN cnn(width, height, deep);
 	
-	cnn.AddLayer("conv filter_size=5 filters=16 P=2");
+	cnn.AddLayer("conv filter_size=5 filters=16");
 	cnn.AddLayer("maxpool");
-	cnn.AddLayer("conv filter_size=5 filters=32 P=2");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("conv filter_size=5 filters=32");
 	cnn.AddLayer("maxpool");
-	cnn.AddLayer("flatten");
-	cnn.AddLayer("fullconnected outputs=128 activation=sigmoid");
-	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("fullconnected outputs=128 activation=relu");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("fullconnected outputs=10");
+	cnn.AddLayer("softmax");
 
 	cnn.PringConfig(); // выводим конфигурацию сети
 
-	// Optimizer optimizer = Optimizer::SGD(learningRate); // оптимизатор - стохастический градиентный спуск
-	// Optimizer optimizer = Optimizer::SGDm(learningRate); // оптимизатор - стохастический градиентный спуск с моментом
-	// Optimizer optimizer = Optimizer::Adagrad(learningRate); // оптимизатор - адаптивный градиент
-	// Optimizer optimizer = Optimizer::Adadelta(learningRate); // оптимизатор - адаптивный градиент со скользящим средним
-	Optimizer optimizer = Optimizer::NAG(learningRate); // оптимизатор - ускоренный градиент Нестерова
+	Optimizer optimizer = Optimizer::AdaMax(learningRate); // оптимизатор - Adamax
 
 	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 
@@ -46,13 +49,16 @@ int main() {
 	for (int i = 0; i < maxEpochs; i++) {
 		cout << (i + 1) << ":" << endl;
 
-		cnn.Train(loader.trainInputData, loader.trainOutputData, 1, optimizer); // обучаем в течение одной эпохи
+		optimizer.SetEpoch(i + 1);
+		double error = cnn.TrainMiniBatch(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, ErrorType::CrossEntropy); // обучаем в течение одной эпохи
 
+		cout << "loss: " << error << endl;
 		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
-		double train_acc = loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
 
 		// если тестовая точность стала выше максимальной
 		if (bestAcc <= test_acc) {
+			loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
+
 			bestAcc = test_acc; // обновляем максимальную точность
 			cnn.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
 		}

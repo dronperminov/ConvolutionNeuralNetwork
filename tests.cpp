@@ -1,10 +1,11 @@
 #include <iostream>
 #include <cassert>
 
-#include "../Layers/ConvLayer.hpp"
-#include "../Layers/MaxPoolingLayer.hpp"
-#include "../Layers/FlattenLayer.hpp"
-#include "../Layers/FullConnectedLayer.hpp"
+#include "Layers/ConvLayer.hpp"
+#include "Layers/MaxPoolingLayer.hpp"
+#include "Layers/FlattenLayer.hpp"
+#include "Layers/FullConnectedLayer.hpp"
+#include "CNN.hpp"
 
 using namespace std;
 
@@ -98,17 +99,21 @@ void FlattenLayerTest() {
 	Volume output = layer.GetOutput();
 
 	assert(fabs(output(0, 0, 0) - 1) < 1e-15);
-	assert(fabs(output(1, 0, 0) - 2) < 1e-15);
-	assert(fabs(output(2, 0, 0) - 3) < 1e-15);
-	assert(fabs(output(3, 0, 0) - 4) < 1e-15);
-	assert(fabs(output(4, 0, 0) - 5) < 1e-15);
-	assert(fabs(output(5, 0, 0) - 6) < 1e-15);
-
-	assert(fabs(output(6, 0, 0) - 1) < 1e-15);
+	assert(fabs(output(1, 0, 0) - 1) < 1e-15);
+	
+	assert(fabs(output(2, 0, 0) - 2) < 1e-15);
+	assert(fabs(output(3, 0, 0) - 0) < 1e-15);
+	
+	assert(fabs(output(4, 0, 0) - 3) < 1e-15);
+	assert(fabs(output(5, 0, 0) + 1) < 1e-15);
+	
+	assert(fabs(output(6, 0, 0) - 4) < 1e-15);
 	assert(fabs(output(7, 0, 0) - 0) < 1e-15);
-	assert(fabs(output(8, 0, 0) + 1) < 1e-15);
-	assert(fabs(output(9, 0, 0) - 0) < 1e-15);
-	assert(fabs(output(10, 0, 0) - 5) < 1e-15);
+	
+	assert(fabs(output(8, 0, 0) - 5) < 1e-15);
+	assert(fabs(output(9, 0, 0) - 5) < 1e-15);
+	
+	assert(fabs(output(10, 0, 0) - 6) < 1e-15);
 	assert(fabs(output(11, 0, 0) - 0) < 1e-15);
 
 	Volume deltas2(2, 3, 2);
@@ -339,9 +344,64 @@ void ConvLayerTest() {
 	cout << "OK" << endl;
 }
 
+void DropoutTest() {
+	cout << "Dropout tests: ";
+	Volume input(1, 1, 10);
+
+	for (int i = 0; i < 10; i++)
+		input[i] = 1;
+
+	DropoutLayer layer(1, 1, 10, 0.2);
+
+	for (int i = 0; i < 10; i++)
+		layer.Forward(input);
+
+	layer.ForwardOutput(input);
+	Volume& output = layer.GetOutput();
+
+	double sum = 0;
+	for (int j = 0; j < 10; j++)
+		sum += output[j];
+
+	assert(fabs(sum - 8) < 1e-14);
+	cout << "OK" << endl;
+}
+
+void GradientCheckingTest() {
+	int width = 16;
+	int height = 16;
+	int deep = 3;
+
+	GaussRandom random;
+	Volume input(width, height, deep);
+	Volume output(1, 1, 10);
+
+	CNN cnn(width, height, deep);
+	
+	cnn.AddLayer("conv filters=16 filter_size=3 P=1");
+	cnn.AddLayer("maxpool");
+	cnn.AddLayer("conv filters=5 filter_size=3 P=1");
+	cnn.AddLayer("maxpool");
+	cnn.AddLayer("fullconnected outputs=40 activation=relu");
+	cnn.AddLayer("softmax");
+	cnn.AddLayer("fullconnected outputs=20 activation=tanh");
+	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
+
+	for (int i = 0; i < 2; i++) {
+		input.FillRandom(random, 1);
+		output.FillRandom(random, 1);
+
+		cnn.GradientChecking(input, output, ErrorType::BinaryCrossEntropy);
+		cnn.GradientChecking(input, output, ErrorType::CrossEntropy);
+		cnn.GradientChecking(input, output, ErrorType::MSE);
+	}
+}
+
 int main() {
 	ConvLayerTest();
 	MaxPoolingLayerTest();
 	FlattenLayerTest();
 	FullConnectedLayerTest();
+	DropoutTest();
+	GradientCheckingTest();
 }

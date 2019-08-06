@@ -7,6 +7,8 @@
 
 class DropoutLayer : public NetworkLayer {
 	double p; // вероятность исключения нейронов
+	double q; // вероятность нейронов остаться (1 - p)
+	int total; // общее количество элементов
 
 	std::default_random_engine generator;
 	std::binomial_distribution<int> distribution;
@@ -23,13 +25,15 @@ public:
 	void Save(std::ostream &f); // сохранение слоя в файл
 };
 
-DropoutLayer::DropoutLayer(int width, int height, int deep, double p) : NetworkLayer(width, height, deep, width, height, deep), distribution(1, p) {
+DropoutLayer::DropoutLayer(int width, int height, int deep, double p) : NetworkLayer(width, height, deep, width, height, deep), distribution(1, 1 - p) {
 	this->p = p;
+	this->q = 1 - p;
+	this->total = width * height * deep;
 }
 
 // вывод конфигурации
 void DropoutLayer::PrintConfig() const {
-	std::cout << "|      dropout layer       | ";
+	std::cout << "| dropout        | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << "           0 | ";
@@ -42,45 +46,35 @@ int DropoutLayer::GetTrainableParams() const {
 	return 0;
 }
 
-// прямое распространение
+// прямое распространение (этап тестирования)
 void DropoutLayer::ForwardOutput(const Volume& input) {
-	//#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++) {
-		for (int i = 0; i < inputSize.height; i++) {
-			for (int j = 0; j < inputSize.width; j++) {
-				output(d, i, j) = input(d, i, j);
-				deltas(d, i, j) = 1;
-			}
-		}
+	#pragma omp parallel for
+	for (int i = 0; i < total; i++) {
+		output[i] = input[i] * q; // умножаем на вероятность остаться
+		deltas[i] = 1; // все дельты равны 1
 	}
 }
 
-// прямое распространение
+// прямое распространение (этап обучения)
 void DropoutLayer::Forward(const Volume& input) {
-	#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++) {
-		for (int i = 0; i < inputSize.height; i++) {
-			for (int j = 0; j < inputSize.width; j++) {
-				if (distribution(generator)) {
-					output(d, i, j) = input(d, i, j) / p;
-					deltas(d, i, j) = 1;
-				}
-				else {
-					output(d, i, j) = 0;
-					deltas(d, i, j) = 0;
-				}
-			}
+	#pragma omp parallel for
+	for (int i = 0; i < total; i++) {
+		if (distribution(generator)) { // если нейрон остаётся включён
+			output[i] = input[i]; // сохраняем входной сигнал
+			deltas[i] = 1; // дельта равна 1
+		}
+		else { // иначе
+			output[i] = 0; // нейрон игнорируется
+			deltas[i] = 0; // дельта равна нулю
 		}
 	}
 }
 
 // обратное распространение
 void DropoutLayer::Backward(Volume& prevDeltas) {
-	//#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++)
-		for (int i = 0; i < inputSize.height; i++)
-			for (int j = 0; j < inputSize.width; j++)
-				prevDeltas(d, i, j) *= deltas(d, i, j);
+	#pragma omp parallel for
+	for (int i = 0; i < total; i++)
+		prevDeltas[i] *= deltas[i]; // пропускают только те нейроны, которые были включены при прямом распространении
 }
 
 // сохранение слоя в файл

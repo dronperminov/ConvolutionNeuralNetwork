@@ -6,6 +6,24 @@
 
 using namespace std;
 
+void PrintLine(int maxEpochs) {
+	cout << "+----------------------+";
+	for (int i = 0; i < maxEpochs; i++)
+		cout << "-----------------------+";
+	cout << endl;
+}
+
+void PrintHeader(int maxEpochs) {
+	PrintLine(maxEpochs);
+
+	cout << "|      Algorithm       |";
+	for (int i = 0; i < maxEpochs; i++)
+		cout << "        Epoch " << (i + 1) << "        |";
+	cout << endl;
+
+	PrintLine(maxEpochs);
+}
+
 int main() {
 	string dir = "../dataset/"; // путь к папке с файлами
 	string train = dir + "mnist_train.csv"; // обучающая выборка
@@ -17,63 +35,98 @@ int main() {
 	int deep = 1; // количество каналов
 
 	int trainCount = 10000; // число обучающих примеров
-
-	double learningRate = 0.004; // скорость обучения
+	double learningRate = 0.01;
 	int maxEpochs = 5; // число эпох обучения
+	ErrorType errorType = ErrorType::MSE; // функция ошибки
 
 	vector<CNN> cnns;
 	vector<Optimizer> optimizers;
-	vector<double> bests;
 	vector<string> names;
 
+	names.push_back("SGD");
 	optimizers.push_back(Optimizer::SGD(learningRate));
+
+	names.push_back("SGDm 0.4");
 	optimizers.push_back(Optimizer::SGDm(learningRate, 0.4));
+
+	names.push_back("SGDm 0.9");
 	optimizers.push_back(Optimizer::SGDm(learningRate));
-	optimizers.push_back(Optimizer::Adagrad(0.01));
-	optimizers.push_back(Optimizer::Adadelta());
-	optimizers.push_back(Optimizer::RMSprop(0.002));
+
+	names.push_back("Adagrad");
+	optimizers.push_back(Optimizer::Adagrad(learningRate));
+
+	names.push_back("NAG");
 	optimizers.push_back(Optimizer::NAG(learningRate));
-	optimizers.push_back(Optimizer::Adam(0.002));
 
-	names.push_back("sgd");
-	names.push_back("sgdm 0.4");
-	names.push_back("sgdm 0.9");
-	names.push_back("adagrad");
-	names.push_back("adadelta");
-	names.push_back("rmsprop");
-	names.push_back("nag");
-	names.push_back("adam");
+	names.push_back("Adadelta");
+	optimizers.push_back(Optimizer::Adadelta());
 
-	for (int i = 0; i < optimizers.size(); i++) {
-		cnns.push_back(CNN(width, height, deep));
-		cnns[i].AddLayer("conv filters=16 filter_size=5");
-		cnns[i].AddLayer("maxpool");
-		cnns[i].AddLayer("conv filters=32 filter_size=5");
-		cnns[i].AddLayer("maxpool");
-		cnns[i].AddLayer("flatten");
-		cnns[i].AddLayer("fullconnected outputs=10 activation=sigmoid");
+	names.push_back("RMSprop");
+	optimizers.push_back(Optimizer::RMSprop(learningRate));
+
+	names.push_back("Adam");
+	optimizers.push_back(Optimizer::Adam(learningRate));
+
+	names.push_back("AMSgrad");
+	optimizers.push_back(Optimizer::AMSgrad(0.001));
+
+	names.push_back("Adamax");
+	optimizers.push_back(Optimizer::AdaMax(learningRate));
+
+	names.push_back("Nadam");
+	optimizers.push_back(Optimizer::Nadam(learningRate));
+
+	CNN cnn(width, height, deep);
+
+	cnn.AddLayer("fullconnected outputs=128 activation=sigmoid");
+	cnn.AddLayer("fullconnected outputs=10");
+	cnn.AddLayer("softmax");
+
+	cnn.PringConfig(); // выводим конфигурацию сети
+
+	cout << "Optimizers:" << endl;
+
+	for (size_t i = 0; i < optimizers.size(); i++) {
+		cout << (i + 1) << ". ";
+		optimizers[i].Print();
+		cout << endl;
 	}
 
-	cnns[0].PringConfig(); // выводим конфигурацию сети
+	cout << endl;
 
 	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 
+	PrintHeader(maxEpochs);
+
 	// запускаем обучение с проверкой и сохранением наилучших сетей
-	for (int i = 0; i < maxEpochs; i++) {
-		cout << (i + 1) << ":" << endl;
+	for (size_t i = 0; i < optimizers.size(); i++) {
+		std::vector<double> errors;
+		std::vector<double> trainAcc;
+		std::vector<double> testAcc;
 
-		for (int j = 0; j < cnns.size(); j++) {
-			optimizers[j].SetEpoch(i + 1);
-			double error = cnns[j].Train(loader.trainInputData, loader.trainOutputData, 1, optimizers[j]); // обучаем в течение одной эпохи
+		for (int j = 0; j < maxEpochs; j++) {
+			optimizers[i].SetEpoch(j + 1);
 
-			cout << names[j] << "                                                                            " << endl;
-			cout << "    error: " << error << endl;
-			double test_acc = loader.Test(cnns[j], test, "    Test accuracy: ", 10000); // проверяем точность на тестовой выборке
-			double train_acc = loader.Test(cnns[j], train, "    Train accuracy: ", 10000); // проверяем точность на обучающей выборке
+			double error = cnn.Train(loader.trainInputData, loader.trainOutputData, 1, optimizers[i], errorType); // обучаем в течение одной эпохи
+			double test_acc = loader.Test(cnn, test, "", 10000); // проверяем точность на тестовой выборке
+			double train_acc = loader.Test(cnn, train, "", 10000); // проверяем точность на обучающей выборке
 
-			cout << endl;
+			errors.push_back(error);
+			trainAcc.push_back(train_acc);
+			testAcc.push_back(test_acc);
 		}
 
-		cout << "============================================================================================" << endl;
+		cout << "| " << setfill(' ') << left << setw(20) << names[i] << " |";
+
+		for (int j = 0; j < maxEpochs; j++) {
+			cout.precision(5);
+			cout << " " << setw(6) << right << fixed << errors[j] << ",";
+			cout << " " << setprecision(2) << testAcc[j] << ",";
+			cout << " " << setprecision(2) << trainAcc[j] << " |";
+		}
+
+		cout << endl;
 	}
+
+	PrintLine(maxEpochs);
 }

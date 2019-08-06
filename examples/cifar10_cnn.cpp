@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include <vector>
 #include "../CNN.hpp"
 #include "../Entities/DataLoader.hpp"
 
@@ -18,31 +17,37 @@ int main() {
 
 	int trainCount = 50000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.0004; // скорость обучения
-	int maxEpochs = 100; // число эпох обучения
+	double learningRate = 0.001; // скорость обучения
+	int batchSize = 64; // размер батча
+	int maxEpochs = 50; // число эпох обучения
 
 	CNN cnn(width, height, deep);
 	
-	cnn.AddLayer("conv filter_size=5 filters=16 P=2");
+	cnn.AddLayer("conv filter_size=3 filters=16 P=1");
+	cnn.AddLayer("conv filter_size=3 filters=16 P=1");
 	cnn.AddLayer("maxpool");
-	cnn.AddLayer("conv filter_size=5 filters=20 P=2");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("conv filter_size=3 filters=32 P=1");
+	cnn.AddLayer("conv filter_size=3 filters=32 P=1");
 	cnn.AddLayer("maxpool");
-	cnn.AddLayer("conv filter_size=5 filters=20 P=2");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("conv filter_size=3 filters=64 P=1");
+	cnn.AddLayer("conv filter_size=3 filters=64 P=1");
 	cnn.AddLayer("maxpool");
-	cnn.AddLayer("flatten");
-	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("fullconnected outputs=128 activation=relu");
+	cnn.AddLayer("dropout p=0.2");
+	cnn.AddLayer("fullconnected outputs=10");
+	cnn.AddLayer("softmax");
 
 	cnn.PringConfig(); // выводим конфигурацию сети
 
 	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 	
-	// Optimizer optimizer = Optimizer::SGD(learningRate); // оптимизатор - стохастический градиентный спуск
-	// Optimizer optimizer = Optimizer::SGDm(learningRate); // оптимизатор - стохастический градиентный спуск с моментом
-	// Optimizer optimizer = Optimizer::Adagrad(learningRate); // оптимизатор - адаптивный градиент
-	// Optimizer optimizer = Optimizer::Adadelta(); // оптимизатор - адаптивный градиент со скользящим средним
-	// Optimizer optimizer = Optimizer::RMSprop(learningRate); // оптимизатор - RMSprop
-	// Optimizer optimizer = Optimizer::NAG(learningRate); // оптимизатор - ускоренный градиент Нестерова
-	Optimizer optimizer = Optimizer::Adam(learningRate); // оптимизатор - Adam
+	Optimizer optimizer = Optimizer::SGDm(learningRate);
 	
 	double best = 0;
 
@@ -51,13 +56,15 @@ int main() {
 		cout << (i + 1) << ":" << endl;
 
 		optimizer.SetEpoch(i + 1);
-		cnn.Train(loader.trainInputData, loader.trainOutputData, 1, optimizer); // обучаем в течение одной эпохи
+		double loss = cnn.TrainMiniBatch(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, ErrorType::CrossEntropy); // обучаем в течение одной эпохи
+
+		cout << "loss: " << loss << endl;
 
 		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
-		double train_acc = loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
 
 		// если тестовая точность стала выше максимальной
 		if (best <= test_acc) {
+			loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
 			best = test_acc; // обновляем максимальную точность
 			cnn.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
 		}
