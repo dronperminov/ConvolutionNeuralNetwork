@@ -37,10 +37,13 @@ class CNN {
 	double BinaryCrossEntropy(const Volume &y, const Volume &t); // бинарная перекрёстная энтропия
 
 	void Forward(const Volume &input); // прямое распространение
+	void ResetCache(); // сброс накоплений в слоях
 
 	std::string SetCost(ErrorType errorType); // установка функции ошибки
 	void Log(TimePoint t0, const std::string &costType, double error, int index, int total) const; // вывод информации
 	void PrintEpochInfo(TimePoint t0, int epoch, const Optimizer &optimizer, const std::string costType, double error) const; // вывод информации по завершении эпохи
+
+	double TrainBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const std::vector<int> &indexes, int index, int batchSize);
 
 public:
 	CNN(int width, int height, int deep); // инициализация сети
@@ -119,6 +122,12 @@ void CNN::Forward(const Volume &input) {
 
 	for (size_t i = 1; i < layers.size(); i++)
 		layers[i]->Forward(layers[i - 1]->GetOutput());
+}
+
+// сброс накоплений в слоях
+void CNN::ResetCache() {
+	for (size_t i = 0; i < layers.size(); i++)
+		layers[i]->ResetCache();
 }
 
 // инициализация сети
@@ -251,7 +260,7 @@ void CNN::Log(TimePoint t0, const std::string &costType, double error, int index
 		std::cout << ".";
 
 	std::cout << "] - ";
-	std::cout << "left: " << TimeSpan(t) << ", " << costType << ": " << error << "\r";
+	std::cout << "left: " << TimeSpan(t) << ", " << costType << ": " << error / (index + 1) << "\r";
 }
 
 // вывод информации по завершении эпохи
@@ -278,9 +287,7 @@ double CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume
 		TimePoint t0 = Time::now();
 		error = 0;
 
-		// сбрасываем все накопления
-		for (size_t i = 0; i < layers.size(); i++)
-			layers[i]->ResetCache();
+		ResetCache(); // сбрасываем все накопления
 
 		// идём по всем обучающим примерам
 		for (size_t index = 0; index < total; index++) {
@@ -297,7 +304,7 @@ double CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume
 			layers[0]->UpdateWeights(optimizer, inputData[index]);
 
 			if ((index + 1) % logPeriod == 0)
-				Log(t0, costType, error / (index + 1), index, inputData.size()); // выводим промежуточную информацию
+				Log(t0, costType, error, index, inputData.size()); // выводим промежуточную информацию
 		}
 
 		PrintEpochInfo(t0, epoch, optimizer, costType, error / total); // выводим информацию по эпохе
@@ -308,7 +315,6 @@ double CNN::Train(const std::vector<Volume> &inputData, const std::vector<Volume
 
 // обучение сети мини пакетами
 double CNN::TrainMiniBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int batchSize, int maxEpochs, const Optimizer &optimizer, ErrorType errorType, int logPeriod) {
-	size_t last = layers.size() - 1;
 	size_t total = inputData.size();
 	double error = 0;
 	std::string costType = SetCost(errorType);
@@ -319,39 +325,19 @@ double CNN::TrainMiniBatch(const std::vector<Volume> &inputData, const std::vect
 		indexes.push_back(i);
 
 	for (int epoch = 0; epoch < maxEpochs; epoch++) {
-		for (size_t i = total; i > 0; i--)
+		for (size_t i = total - 1; i > 0; i--)
 			std::swap(indexes[i], indexes[rand() % (i + 1)]);
 		
 		TimePoint t0 = Time::now();
 		error = 0;
 
-		// сбрасываем все накопления
-		for (size_t i = 0; i < layers.size(); i++)
-			layers[i]->ResetCache();
+		ResetCache(); // сбрасываем все накопления
 
 		// идём по всем обучающим примерам
 		for (size_t index = 0; index < total; index += batchSize) {
-			int min = index + batchSize < total ? batchSize : total - index;
+			error += TrainBatch(inputData, outputData, indexes, index, batchSize);
 			
-			for (int batch = 0; batch < min; batch++) {
-				int curr = indexes[index + batch];
-
-				Forward(inputData[curr]); // распространяем сигнал по слоям
-
-				error += (this->*cost)(layers[last]->GetOutput(), outputData[curr]); // находим ошибку сети
-
-				// распространяем ошибку по слоям обратно
-				for (size_t i = last; i > 0; i--) {
-					layers[i]->Backward(layers[i - 1]->GetDeltas());
-					layers[i]->CalculateGradients(layers[i - 1]->GetOutput());
-				}
-
-				// вычисляем градиенты
-				layers[0]->CalculateGradients(inputData[curr]);
-
-				if ((index + batch + 1) % logPeriod == 0)
-					Log(t0, costType, error / (index + batch + 1), index + batch, total); // выводим промежуточную информацию
-			}
+			Log(t0, costType, error, std::min(index + batchSize, total) - 1, total); // выводим промежуточную информацию
 
 			// обновляем весовые коэффициенты
 			for (size_t i = 0; i < layers.size(); i++)
@@ -364,72 +350,85 @@ double CNN::TrainMiniBatch(const std::vector<Volume> &inputData, const std::vect
 	return error / total;
 }
 
-double CNN::FindLearningRate(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int batchSize, double startLR, double endLR, Optimizer &optimizer, ErrorType errorType) {
+double CNN::TrainBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const std::vector<int> &indexes, int index, int batchSize) {
+	double error = 0;
 	size_t last = layers.size() - 1;
+
+	for (int batch = 0; batch < batchSize && index + batch < inputData.size(); batch++) {
+		int curr = indexes[index + batch];
+
+		Forward(inputData[curr]); // распространяем сигнал по слоям
+
+		error += (this->*cost)(layers[last]->GetOutput(), outputData[curr]); // находим ошибку сети
+
+		// распространяем ошибку по слоям обратно и вычисляем градиенты
+		for (size_t i = last; i > 0; i--) {
+			layers[i]->Backward(layers[i - 1]->GetDeltas());
+			layers[i]->CalculateGradients(layers[i - 1]->GetOutput());
+		}
+
+		layers[0]->CalculateGradients(inputData[curr]);
+	}
+
+	return error;
+}
+
+double CNN::FindLearningRate(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, int batchSize, double startLR, double endLR, Optimizer &optimizer, ErrorType errorType) {
 	size_t total = inputData.size();
 
 	size_t numBatches = total / batchSize;
 	double scale = pow(endLR / startLR, 1.0 / numBatches);
 	double learningRate = startLR;
 
-	double error = 0;
-	size_t passed = 0;
-
-	double minError = -1;
-	double minLearningRate = startLR;
-
 	std::string costType = SetCost(errorType);
 
 	std::vector<int> indexes;
+
+	double beta = 0.98;
+
+	double loss = 0;
+	double best_loss = 0;
+	double avg_loss = 0;
+	double minLearningRate = 0;
+	size_t passed = 0;
 	
 	for (size_t i = 0; i < total; i++)
 		indexes.push_back(i);
 
-	for (size_t i = total; i > 0; i--)
+	for (size_t i = total - 1; i > 0; i--)
 		std::swap(indexes[i], indexes[rand() % (i + 1)]);
-
-	// сбрасываем все накопления
-	for (size_t i = 0; i < layers.size(); i++)
-		layers[i]->ResetCache();
+	
+	ResetCache(); // сбрасываем все накопления
 
 	// идём по всем обучающим примерам
 	for (size_t index = 0; index < total; index += batchSize) {
-		optimizer.SetLearningRate(learningRate);		
+		loss += TrainBatch(inputData, outputData, indexes, index, batchSize);
+		passed += batchSize;
 
-		for (int batch = 0; batch < batchSize && index + batch < total; batch++) {
-			int curr = indexes[index + batch];
+		avg_loss = beta * avg_loss + (1 - beta) * (loss / passed);
+		double smoothed_loss = avg_loss / (1 - pow(beta, passed / batchSize + 1));
 
-			Forward(inputData[curr]); // распространяем сигнал по слоям
-
-			error += (this->*cost)(layers[last]->GetOutput(), outputData[curr]); // находим ошибку сети
-
-			// распространяем ошибку по слоям обратно
-			for (size_t i = last; i > 0; i--)
-				layers[i]->Backward(layers[i - 1]->GetDeltas());
-
-			// вычисляем градиенты
-			layers[0]->CalculateGradients(inputData[curr]);
-
-			for (size_t i = 1; i < layers.size(); i++)
-				layers[i]->CalculateGradients(layers[i - 1]->GetOutput());
-
-			passed++;
+		if (best_loss == 0 || smoothed_loss < best_loss) {
+			best_loss = smoothed_loss;
+			minLearningRate = learningRate;
 		}
+		
+		optimizer.SetLearningRate(learningRate);
 
 		// обновляем весовые коэффициенты
 		for (size_t i = 0; i < layers.size(); i++)
 			layers[i]->UpdateWeights(optimizer, batchSize);
 
-		if (minError == -1 || error / passed < minError) {
-			minError = error / passed;
-			minLearningRate = learningRate;
-		}
-
-		std::cout << "batch " << ((1 + index) / batchSize) << "/" << numBatches << ", learning rate: " << learningRate << ", loss: " << error / passed << ", min loss: " << minError << ", min lr: " << minLearningRate << "\r";
 		learningRate *= scale;
+
+		std::cout << "Batch " << (1 + index / batchSize) << " / " << numBatches << ", learning rate: " << learningRate << ", loss: " << loss / passed << "\r";
 	}
 
-	return minLearningRate / 10;
+	minLearningRate /= 8;
+
+	std::cout << "Best learningRate: " << minLearningRate << "\r";
+
+	return minLearningRate;
 }
 
 // получение ошибки на заданной выборке без изменения весовых коэффициентов

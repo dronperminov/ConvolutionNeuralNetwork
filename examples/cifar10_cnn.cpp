@@ -17,7 +17,7 @@ int main() {
 
 	int trainCount = 50000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.001; // скорость обучения
+	double learningRate = 0.0008; // скорость обучения
 	int batchSize = 64; // размер батча
 	int maxEpochs = 50; // число эпох обучения
 
@@ -49,7 +49,7 @@ int main() {
 	
 	Optimizer optimizer = Optimizer::SGDm(learningRate);
 	
-	double best = 0;
+	double bestAcc = 0;
 
 	// запускаем обучение с проверкой и сохранением наилучших сетей
 	for (int i = 0; i < maxEpochs; i++) {
@@ -60,16 +60,19 @@ int main() {
 
 		cout << "loss: " << loss << endl;
 
-		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
+		double testAcc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
 
 		// если тестовая точность стала выше максимальной
-		if (best <= test_acc) {
+		if (bestAcc <= testAcc) {
 			loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
-			best = test_acc; // обновляем максимальную точность
-			cnn.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
+			bestAcc = testAcc; // обновляем максимальную точность
+			cnn.Save(to_string(testAcc) + ".txt"); // и сохраняем сеть
+		}
+		else {
+			optimizer.ChangeLearningRate(0.9);
 		}
 
-		cout << "Best: " << best << endl << endl; // выводим лучшую точность
+		cout << "Best: " << bestAcc << endl << endl; // выводим лучшую точность
 		cout << "============================================================================================" << endl;
 	}
 }

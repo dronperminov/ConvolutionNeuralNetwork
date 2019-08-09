@@ -383,9 +383,9 @@ void GradientCheckingTest() {
 	cnn.AddLayer("conv filters=5 filter_size=3 P=1");
 	cnn.AddLayer("maxpool");
 	cnn.AddLayer("fullconnected outputs=40 activation=relu");
-	cnn.AddLayer("softmax");
 	cnn.AddLayer("fullconnected outputs=20 activation=tanh");
 	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
+	cnn.AddLayer("softmax");
 
 	for (int i = 0; i < 2; i++) {
 		input.FillRandom(random, 1);

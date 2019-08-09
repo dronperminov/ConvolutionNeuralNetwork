@@ -37,7 +37,7 @@ int main() {
 	int trainCount = 10000; // число обучающих примеров
 	double learningRate = 0.01;
 	int maxEpochs = 5; // число эпох обучения
-	ErrorType errorType = ErrorType::MSE; // функция ошибки
+	ErrorType errorType = ErrorType::CrossEntropy; // функция ошибки
 
 	vector<CNN> cnns;
 	vector<Optimizer> optimizers;
@@ -76,13 +76,15 @@ int main() {
 	names.push_back("Nadam");
 	optimizers.push_back(Optimizer::Nadam(learningRate));
 
-	CNN cnn(width, height, deep);
+	for (size_t i = 0; i < optimizers.size(); i++) {
+		cnns.push_back(CNN(width, height, deep));
 
-	cnn.AddLayer("fullconnected outputs=128 activation=sigmoid");
-	cnn.AddLayer("fullconnected outputs=10");
-	cnn.AddLayer("softmax");
+		cnns[i].AddLayer("fullconnected outputs=128 activation=sigmoid");
+		cnns[i].AddLayer("fullconnected outputs=10");
+		cnns[i].AddLayer("softmax");
+	}
 
-	cnn.PringConfig(); // выводим конфигурацию сети
+	cnns[0].PringConfig(); // выводим конфигурацию сети
 
 	cout << "Optimizers:" << endl;
 
@@ -107,9 +109,9 @@ int main() {
 		for (int j = 0; j < maxEpochs; j++) {
 			optimizers[i].SetEpoch(j + 1);
 
-			double error = cnn.Train(loader.trainInputData, loader.trainOutputData, 1, optimizers[i], errorType); // обучаем в течение одной эпохи
-			double test_acc = loader.Test(cnn, test, "", 10000); // проверяем точность на тестовой выборке
-			double train_acc = loader.Test(cnn, train, "", 10000); // проверяем точность на обучающей выборке
+			double error = cnns[i].Train(loader.trainInputData, loader.trainOutputData, 1, optimizers[i], errorType); // обучаем в течение одной эпохи
+			double test_acc = loader.Test(cnns[i], test, "", 10000); // проверяем точность на тестовой выборке
+			double train_acc = loader.Test(cnns[i], train, "", 10000); // проверяем точность на обучающей выборке
 
 			errors.push_back(error);
 			trainAcc.push_back(train_acc);
