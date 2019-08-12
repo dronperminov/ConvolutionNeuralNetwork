@@ -17,12 +17,12 @@ int main() {
 
 	int trainCount = 50000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.0008; // скорость обучения
+	double learningRate = 0.009; // скорость обучения
 	int batchSize = 64; // размер батча
 	int maxEpochs = 50; // число эпох обучения
 
 	CNN cnn(width, height, deep);
-	
+
 	cnn.AddLayer("conv filter_size=3 filters=16 P=1");
 	cnn.AddLayer("conv filter_size=3 filters=16 P=1");
 	cnn.AddLayer("maxpool");
@@ -35,6 +35,11 @@ int main() {
 
 	cnn.AddLayer("conv filter_size=3 filters=64 P=1");
 	cnn.AddLayer("conv filter_size=3 filters=64 P=1");
+	cnn.AddLayer("maxpool");
+	cnn.AddLayer("dropout p=0.2");
+
+	cnn.AddLayer("conv filter_size=3 filters=128 P=1");
+	cnn.AddLayer("conv filter_size=3 filters=128 P=1");
 	cnn.AddLayer("maxpool");
 	cnn.AddLayer("dropout p=0.2");
 
@@ -46,9 +51,9 @@ int main() {
 	cnn.PringConfig(); // выводим конфигурацию сети
 
 	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
-	
+
 	Optimizer optimizer = Optimizer::SGDm(learningRate);
-	
+
 	double bestAcc = 0;
 
 	// запускаем обучение с проверкой и сохранением наилучших сетей
