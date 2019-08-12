@@ -18,6 +18,7 @@ private:
 	std::vector<std::string> labels; // метки классов
 	std::vector<int> statistics; // статистика обучающей выборки
 	VolumeSize inputSize; // размер входа
+	double scale;
 
 	std::vector<std::string> SplitByChar(const std::string s, char c = ',') const; // разбиение строки по символу
 	int GetLabelIndex(const std::string &label) const; // индекс класса
@@ -28,9 +29,9 @@ private:
 	void ReadLabels(const std::string& path); // считывание меток классов
 
 public:
-	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData = 100);
+	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData = 100, double scale = 255);
 
-	double Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount = -1); // проверка точности предсказаний сети
+	double Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount = -1, bool verbose = false); // проверка точности предсказаний сети
 	void Predict(CNN &cnn, const std::string &testPath, const std::string &predictPath, const std::string &msg = "id,label"); // предсказание сети
 	void PrintStats() const; // вывод статистики обучающей выборки
 };
@@ -90,7 +91,7 @@ Volume DataLoader::GetVolume(const std::vector<std::string> &args, int start) {
 	for (int i = 0; i < inputSize.height; i++)
 		for (int j = 0; j < inputSize.width; j++)
 			for (int d = 0; d < inputSize.deep; d++)
-				input(d, i, j) = std::stod(args[index++]) / 255.0;
+				input(d, i, j) = std::stod(args[index++]) / scale;
 
 	return input;
 }
@@ -124,7 +125,7 @@ void DataLoader::ReadTrain(const std::string &trainPath, int maxTrainData) {
 
 		for (size_t i = 0; i < labels.size(); i++)
 			output(i, 0, 0) = label == i ? 1 : 0;
-		
+
 		trainOutputData.push_back(output);
 
 		std::cout << "Succesfully loaded " << trainInputData.size() << " train samples\r";
@@ -155,16 +156,18 @@ void DataLoader::ReadLabels(const std::string& path) {
 	std::cout << "Succesfully loaded " << labels.size() << " labels" << std::endl;
 }
 
-DataLoader::DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData) {
+DataLoader::DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData, double scale) {
 	inputSize.width = width;
 	inputSize.height = height;
 	inputSize.deep = deep;
+
+	this->scale = scale;
 
 	ReadLabels(labelsPath);
 	ReadTrain(trainPath, maxTrainData); // формируем обучающую выборку
 }
 
-double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount) {
+double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount, bool verbose) {
 	std::ifstream f(testPath.c_str());
 	std::string line;
 
@@ -173,21 +176,30 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 	int correct = 0;
 	int total = 0;
 
+	std::vector<int> corrects(labels.size(), 0);
+	std::vector<int> totals(labels.size(), 0);
+	std::vector<std::vector<double>> matrix(labels.size(), std::vector<double>(labels.size(), 0));
+
 	while (std::getline(f, line) && total != maxCount) {
 		std::vector<std::string> args = SplitByChar(line, ',');
-		
+
 		int label = GetLabelIndex(args[0]);
 
 		if (label == -1)
 			throw std::runtime_error("Unknown label");
 
+
 		Volume input = GetVolume(args);
 		int index = GetOutputIndex(cnn, input);
 
 		total++;
+		totals[label]++;
+		matrix[label][index]++;
 
-		if (index == label)
+		if (index == label) {
 			correct++;
+			corrects[label]++;
+		}
 
 		if (msg.length())
 			std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%               \r";
@@ -197,6 +209,23 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 
 	if (msg.length())
 		std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%            " << std::endl;
+
+	if (verbose) {
+		for (size_t i = 0; i < labels.size(); i++)
+			std::cout << labels[i] << ": " << corrects[i] << "/" << totals[i] << " - " << (100.0 * corrects[i] / totals[i]) << "%" << std::endl;
+
+		std::cout << std::endl << "Confusion matrix:" << std::endl;
+		std::cout << std::setfill(' ');
+
+		for (size_t i = 0; i < labels.size(); i++) {
+			std::cout << std::setw(10) << labels[i] << " | ";
+
+			for (size_t j = 0; j < labels.size(); j++)
+				std::cout << std::setprecision(2) << std::setw(5) << matrix[i][j] / totals[i] << " | ";
+
+			std::cout << std::endl;
+		}
+	}
 
 	return 100.0 * correct / total;
 }
