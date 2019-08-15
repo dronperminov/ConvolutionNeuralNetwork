@@ -285,11 +285,11 @@ void ConvLayer::UpdateWeights(const Optimizer &optimizer) {
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
 		for (int i = 0; i < total; i++) {
-			optimizer.Update(dW[index][i] / batchSize, paramsW[0][index][i], paramsW[1][index][i], W[index][i]);
+			optimizer.Update(dW[index][i] / batchSize, paramsW[0][index][i], paramsW[1][index][i], paramsW[2][index][i], W[index][i]);
 			dW[index][i] = 0;
 		}
 
-		optimizer.Update(db[index] / batchSize, paramsb[0][index], paramsb[1][index], b[index]);
+		optimizer.Update(db[index] / batchSize, paramsb[0][index], paramsb[1][index], paramsb[2][index], b[index]);
 		db[index] = 0;
 	}
 }

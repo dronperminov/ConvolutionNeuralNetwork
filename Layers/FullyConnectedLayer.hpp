@@ -265,11 +265,11 @@ void FullyConnectedLayer::UpdateWeights(const Optimizer &optimizer) {
 	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
 		for (int j = 0; j < inputs; j++) {
-			optimizer.Update(dW(i, j) / batchSize, paramsW[0](i, j), paramsW[1](i, j), W(i, j));
+			optimizer.Update(dW(i, j) / batchSize, paramsW[0](i, j), paramsW[1](i, j), paramsW[2](i, j), W(i, j));
 			dW(i, j) = 0;
 		}
 
-		optimizer.Update(db[i] / batchSize, paramsb[0][i], paramsb[1][i], b[i]);
+		optimizer.Update(db[i] / batchSize, paramsb[0][i], paramsb[1][i], paramsb[2][i], b[i]);
 		db[i] = 0;
 	}
 }

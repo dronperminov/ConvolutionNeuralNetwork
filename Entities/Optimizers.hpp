@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#define OPTIMIZER_PARAMS_COUNT 3
+
 enum class OptimizerType {
 	SGD, // стохастический градиентный спуск
 	SGDm, // стохастический градиентный спуск с моментом
@@ -19,27 +21,27 @@ enum class OptimizerType {
 class Optimizer {
 	OptimizerType type; // тип оптимизатора
 	double learningRate; // скорость обучения
-	double param; // параметр оптимизатора
-	double param2; // второй параметр оптимизатора
+	double beta1; // параметр оптимизатора
+	double beta2; // второй параметр оптимизатора
 	double param3; // третий параметр оптимизатора
 	double param4; // четвёртый параметр оптимизатора
 	int epoch; // номер эпохи
 
-	void (Optimizer::*update)(double, double&, double&, double&) const;
+	void (Optimizer::*update)(double, double&, double&, double&, double&) const;
 
-	void UpdateSGD(double grad, double &dw, double &dw2, double &w) const; // обновление веса для стохастического градиентного спуска
-	void UpdateSGDm(double grad, double &dw, double &dw2, double &w) const; // обновление веса для стохастического градиентного спуска с моментом
-	void UpdateAdagrad(double grad, double &dw, double &dw2, double &w) const; // обновление веса для адаптивного градиента
-	void UpdateRMSprop(double grad, double &dw, double &dw2, double &w) const; // обновление веса для RMSprop
-	void UpdateAdadelta(double grad, double &dw, double &dw2, double &w) const; // обновление веса для адаптивного градиента со скользящим средним
-	void UpdateNAG(double grad, double &dw, double &dw2, double &w) const; // обновление веса для ускоренного градиента Нестерова
-	void UpdateAdam(double grad, double &dw, double &dw2, double &w) const; // обновление веса для адаптивного момента
-	void UpdateAdaMax(double grad, double &dw, double &dw2, double &w) const; // обновление веса для AdaMax
-	void UpdateNadam(double grad, double &dw, double &dw2, double &w) const; // обновление веса для Nadam
-	void UpdateAMSgrad(double grad, double &dw, double &dw2, double &w) const; // обновление веса для AMSgrad
-	void UpdateAdaBound(double grad, double &dw, double &dw2, double &w) const; // обновление веса для AdaBound
+	void UpdateSGD(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для стохастического градиентного спуска
+	void UpdateSGDm(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для стохастического градиентного спуска с моментом
+	void UpdateAdagrad(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для адаптивного градиента
+	void UpdateRMSprop(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для RMSprop
+	void UpdateAdadelta(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для адаптивного градиента со скользящим средним
+	void UpdateNAG(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для ускоренного градиента Нестерова
+	void UpdateAdam(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для адаптивного момента
+	void UpdateAdaMax(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для AdaMax
+	void UpdateNadam(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для Nadam
+	void UpdateAMSgrad(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для AMSgrad
+	void UpdateAdaBound(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для AdaBound
 
-	Optimizer(OptimizerType type, double learningRate, double param = 0, double param2 = 0, double param3 = 0, double param4 = 0);
+	Optimizer(OptimizerType type, double learningRate, double beta1 = 0, double beta2 = 0, double param3 = 0, double param4 = 0);
 
 public:
 	static Optimizer SGD(double learningRate = 0.01); // стохастический градиентный спуск
@@ -54,7 +56,7 @@ public:
 	static Optimizer AMSgrad(double learningRate = 0.002, double beta1 = 0.9, double beta2 = 0.999); // AMSgrad
 	static Optimizer AdaBound(double learningRate = 0.001, double beta1 = 0.9, double beta2 = 0.999, double finalLearningRate = 0.1, double gamma = 1e-3); // AdaBound
 
-	void Update(double grad, double &dw, double &dw2, double &w) const; // обновление весовых коэффициентов
+	void Update(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление весовых коэффициентов
 	void Print() const; // вывод информации об алгоритме
 
 	void SetEpoch(int epoch); // задание текущей эпохи
@@ -62,12 +64,12 @@ public:
 	void ChangeLearningRate(double v); // изменение скорости обучения в v раз
 };
 
-Optimizer::Optimizer(OptimizerType type, double learningRate, double param, double param2, double param3, double param4) {
+Optimizer::Optimizer(OptimizerType type, double learningRate, double beta1, double beta2, double param3, double param4) {
 	this->type = type;
 	this->learningRate = learningRate;
 
-	this->param = param;
-	this->param2 = param2;
+	this->beta1 = beta1;
+	this->beta2 = beta2;
 	this->param3 = param3;
 	this->param4 = param4;
 
@@ -166,92 +168,93 @@ Optimizer Optimizer::AdaBound(double learningRate, double beta1, double beta2, d
 }
 
 // обновление веса для стохастического градиентного спуска
-void Optimizer::UpdateSGD(double grad, double &dw, double &dw2, double &w) const {
+void Optimizer::UpdateSGD(double grad, double &dw, double &dw2, double &dw3, double &w) const {
 	w -= learningRate * grad;
 }
 
 // обновление веса для стохастического градиентного спуска с моментом
-void Optimizer::UpdateSGDm(double grad, double &v, double &dw2, double &w) const {
-	v = param * v + learningRate * grad;
-	w -= v;
+void Optimizer::UpdateSGDm(double grad, double &m, double &dw2, double &dw3, double &w) const {
+	m = beta1 * m + learningRate * grad;
+	w -= m;
 }
 
 // обновление веса для адаптивного градиента
-void Optimizer::UpdateAdagrad(double grad, double &dw, double &dw2, double &w) const {
-	dw += grad * grad;
-	w -= learningRate * grad / sqrt(dw + 1e-6);
+void Optimizer::UpdateAdagrad(double grad, double &G, double &dw2, double &dw3, double &w) const {
+	G += grad * grad;
+	w -= learningRate * grad / sqrt(G + 1e-6);
 }
 
 // обновление веса для RMSprop
-void Optimizer::UpdateRMSprop(double grad, double &dw, double &dw2, double &w) const {
-	dw = dw * param + (1 - param) * grad * grad;
+void Optimizer::UpdateRMSprop(double grad, double &dw, double &dw2, double &dw3, double &w) const {
+	dw = dw * beta1 + (1 - beta1) * grad * grad;
 	w -= learningRate * grad / sqrt(dw + 1e-6);
 }
 
 // обновление веса для адаптивного градиента со скользящим средним
-void Optimizer::UpdateAdadelta(double grad, double &Eg, double &Ex, double &w) const {
-	Eg = param * Eg + (1 - param) * grad * grad;
+void Optimizer::UpdateAdadelta(double grad, double &Eg, double &Ex, double &dw3, double &w) const {
+	Eg = beta1 * Eg + (1 - beta1) * grad * grad;
 	double dw = -(sqrt(Ex + 1e-6)) / sqrt(Eg + 1e-6) * grad;
-	Ex = param * Ex + (1 - param) * dw * dw;
+	Ex = beta1 * Ex + (1 - beta1) * dw * dw;
 	w += dw;
 }
 
 // обновление веса для ускоренного градиента Нестерова
-void Optimizer::UpdateNAG(double grad, double &v, double &dw2, double &w) const {
+void Optimizer::UpdateNAG(double grad, double &v, double &dw2, double &dw3, double &w) const {
 	double prev = v;
-	v = param * v - learningRate * grad;
-	w += param * (v - prev) + v;
+	v = beta1 * v - learningRate * grad;
+	w += beta1 * (v - prev) + v;
 }
 
 // обновление веса для адаптивного момента
-void Optimizer::UpdateAdam(double grad, double &m, double &v, double &w) const {
-	m = param * m + (1 - param) * grad;
-	v = param2 * v + (1 - param2) * grad * grad;
-	double mt = m / (1 - pow(param, epoch));
-	double vt = v / (1 - pow(param2, epoch));
+void Optimizer::UpdateAdam(double grad, double &m, double &v, double &dw3, double &w) const {
+	m = beta1 * m + (1 - beta1) * grad;
+	v = beta2 * v + (1 - beta2) * grad * grad;
+
+	double mt = m / (1 - pow(beta1, epoch));
+	double vt = v / (1 - pow(beta2, epoch));
 
 	w -= learningRate * mt / (sqrt(vt) + 1e-8);
 }
 
 // обновление веса для AdaMax
-void Optimizer::UpdateAdaMax(double grad, double &V, double &S, double &w) const {
-	V = param * V + (1 - param) * grad;
-	S = std::max(param2 * S, fabs(grad));
+void Optimizer::UpdateAdaMax(double grad, double &m, double &v, double &dw3, double &w) const {
+	m = beta1 * m + (1 - beta1) * grad;
+	v = std::max(beta2 * v, fabs(grad));
 
-	double vt = V / (1 - pow(param, epoch));
+	double mt = m / (1 - pow(beta1, epoch));
 
-	w -= learningRate * vt / (S + 1e-8);
+	w -= learningRate * mt / (v + 1e-8);
 }
 
 // обновление веса для Nadam
-void Optimizer::UpdateNadam(double grad, double &V, double &S, double &w) const {
-	double Vt1 = V / (1 - pow(param, epoch));
+void Optimizer::UpdateNadam(double grad, double &m, double &v, double &dw3, double &w) const {
+	double mt1 = m / (1 - pow(beta1, epoch));
 
-	V = param * V + (1 - param) * grad;
-	S = param2 * S + (1 - param2) * grad * grad;
+	m = beta1 * m + (1 - beta1) * grad;
+	v = beta2 * v + (1 - beta2) * grad * grad;
 
-	double Vt = V / (1 - pow(param, epoch));
-	double St = S / (1 - pow(param2, epoch));
+	double Vt = m / (1 - pow(beta1, epoch));
+	double St = v / (1 - pow(beta2, epoch));
 
-	w -= learningRate * (param * Vt1 + (1 - param) / (1 - pow(param, epoch)) * grad) / (sqrt(St) + 1e-7);
+	w -= learningRate * (beta1 * mt1 + (1 - beta1) / (1 - pow(beta1, epoch)) * grad) / (sqrt(St) + 1e-7);
 }
 
 // обновление веса для AMSgrad
-void Optimizer::UpdateAMSgrad(double grad, double &V, double &S, double &w) const {
-	V = param * V + (1 - param) * grad;
-	double S0 = S;
-	S = param2 * S + (1 - param2) * grad * grad;
-	double St = std::max(S0, S);
+void Optimizer::UpdateAMSgrad(double grad, double &m, double &v, double &vt, double &w) const {
+	m = beta1 * m + (1 - beta1) * grad;
+	v = beta2 * v + (1 - beta2) * grad * grad;
 
-	w -= learningRate * V / (sqrt(St) + 1e-7);
+	vt = std::max(v, vt);
+
+	w -= learningRate * m / (sqrt(vt) + 1e-7);
 }
 
 // обновление веса для AdaBound
-void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &w) const {
-	m = param * m + (1 - param) * grad;
-	v = param2 * v + (1 - param2) * grad * grad;
-	double mt = m / (1 - pow(param, epoch));
-	double vt = v / (1 - pow(param2, epoch));
+void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &dw3, double &w) const {
+	m = beta1 * m + (1 - beta1) * grad;
+	v = beta2 * v + (1 - beta2) * grad * grad;
+	double mt = m / (1 - pow(beta1, epoch));
+	double vt = v / (1 - pow(beta2, epoch));
 
 	double lower_bound = param4 * (1 - 1 / (param3 * epoch + 1));
 	double upper_bound = param4 * (1 + 1 / (param3 * epoch));
@@ -268,8 +271,8 @@ void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &w) con
 }
 
 // обновление весовых коэффициентов
-void Optimizer::Update(double grad, double &dw, double &dw2, double &w) const {
-	(this->*update)(grad, dw, dw2, w);
+void Optimizer::Update(double grad, double &dw, double &dw2, double &dw3, double &w) const {
+	(this->*update)(grad, dw, dw2, dw3, w);
 }
 
 // вывод информации об алгоритме
@@ -279,34 +282,34 @@ void Optimizer::Print() const {
 		std::cout << "SGD";
 	}
 	else if (type == OptimizerType::SGDm) {
-		std::cout << "SGDm, moment: " << param;
+		std::cout << "SGDm, moment: " << beta1;
 	}
 	else if (type == OptimizerType::Adagrad) {
 		std::cout << "Adagrad";
 	}
 	else if (type == OptimizerType::Adadelta) {
-		std::cout << "Adadelta, gamma: " << param;
+		std::cout << "Adadelta, gamma: " << beta1;
 	}
 	else if (type == OptimizerType::RMSprop) {
-		std::cout << "RMSprop, gamma: " << param;
+		std::cout << "RMSprop, gamma: " << beta1;
 	}
 	else if (type == OptimizerType::NAG) {
-		std::cout << "NAG, mu: " << param;
+		std::cout << "NAG, mu: " << beta1;
 	}
 	else if (type == OptimizerType::Adam) {
-		std::cout << "Adam, beta1: " << param << ", beta2: " << param2;
+		std::cout << "Adam, beta1: " << beta1 << ", beta2: " << beta2;
 	}
 	else if (type == OptimizerType::AdaMax) {
-		std::cout << "AdaMax, beta1: " << param << ", beta2: " << param2;
+		std::cout << "AdaMax, beta1: " << beta1 << ", beta2: " << beta2;
 	}
 	else if (type == OptimizerType::Nadam) {
-		std::cout << "Nadam, beta1: " << param << ", beta2: " << param2;
+		std::cout << "Nadam, beta1: " << beta1 << ", beta2: " << beta2;
 	}
 	else if (type == OptimizerType::AMSgrad) {
-		std::cout << "AMSgrad, beta1: " << param << ", beta2: " << param2;
+		std::cout << "AMSgrad, beta1: " << beta1 << ", beta2: " << beta2;
 	}
 	else if (type == OptimizerType::AdaBound) {
-		std::cout << "AdaBound, beta1: " << param << ", beta2: " << param2 << ", gamma: " << param4 << ", finalLearningRate: " << param3;
+		std::cout << "AdaBound, beta1: " << beta1 << ", beta2: " << beta2 << ", gamma: " << param4 << ", finalLearningRate: " << param3;
 	}
 
 	if (type != OptimizerType::Adadelta) {

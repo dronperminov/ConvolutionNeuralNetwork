@@ -4,8 +4,6 @@
 #include "../Entities/Volume.hpp"
 #include "../Entities/Optimizers.hpp"
 
-#define OPTIMIZER_PARAMS_COUNT 2
-
 class NetworkLayer {
 protected:
 	GaussRandom random; // генератор случайных чисел с нормальным распределением

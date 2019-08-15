@@ -200,8 +200,8 @@ void BatchNormalizationLayer::Backward(const std::vector<Volume> &dout, const st
 void BatchNormalizationLayer::UpdateWeights(const Optimizer &optimizer) {
 	#pragma omp parallel for
 	for (int i = 0; i < total; i++) {
-		optimizer.Update(dbeta[i], paramsbeta[0][i], paramsbeta[1][i], beta[i]);
-		optimizer.Update(dgamma[i], paramsgamma[0][i], paramsgamma[1][i], gamma[i]);
+		optimizer.Update(dbeta[i], paramsbeta[0][i], paramsbeta[1][i], paramsbeta[2][i], beta[i]);
+		optimizer.Update(dgamma[i], paramsgamma[0][i], paramsgamma[1][i], paramsgamma[2][i], gamma[i]);
 
 		dbeta[i] = 0;
 		dgamma[i] = 0;
