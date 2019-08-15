@@ -3,15 +3,16 @@
 
 #include "Layers/ConvLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
-#include "Layers/FlattenLayer.hpp"
-#include "Layers/FullConnectedLayer.hpp"
-#include "CNN.hpp"
+#include "Layers/FullyConnectedLayer.hpp"
+#include "Layers/DropoutLayer.hpp"
+#include "Layers/BatchNormalizationLayer.hpp"
+#include "Network.hpp"
 
 using namespace std;
 
-void FullConnectedLayerTest() {
+void FullyConnectedLayerTest() {
 	cout << "Full connected tests: ";
-	FullConnectedLayer layer(8, 4, "relu");
+	FullyConnectedLayer layer(1, 1, 8, 4, "relu");
 	
 	double weights[4][8] = {
 		{ 1, 2, 3, 4, -1, -2, -3, -4 },
@@ -38,9 +39,9 @@ void FullConnectedLayerTest() {
 	input(6, 0, 0) = 2;
 	input(7, 0, 0) = -4;
 
-	layer.Forward(input);
+	layer.Forward({input});
 
-	Volume& output = layer.GetOutput();
+	Volume& output = layer.GetOutput()[0];
 
 	assert(output.Width() == 1);
 	assert(output.Height() == 1);
@@ -51,98 +52,26 @@ void FullConnectedLayerTest() {
 	assert(output(2, 0, 0) == 46);
 	assert(output(3, 0, 0) == 15);
 
-	Volume prev(1, 1, 8);
+	Volume deltas(1, 1, 4);
 
-	for (int i = 0; i < 8; i++)
-		prev(i, 0, 0) = 1;
+	deltas(0, 0, 0) = -0.5;
+	deltas(1, 0, 0) = 0.1;
+	deltas(2, 0, 0) = -0.25;
+	deltas(3, 0, 0) = 0.7;
 
-	layer.GetDeltas()(0, 0, 0) = -0.5;
-	layer.GetDeltas()(1, 0, 0) = 0.1;
-	layer.GetDeltas()(2, 0, 0) = -0.25;
-	layer.GetDeltas()(3, 0, 0) = 0.7;
+	layer.Backward({deltas}, {input}, true);
+	Volume &prev = layer.GetDeltas()[0];
 
-	layer.Backward(prev);
-
-	assert(fabs(prev(0, 0, 0) - 0.05) < 1e-15);
+	assert(fabs(prev(0, 0, 0) + 0.05) < 1e-15);
 	assert(fabs(prev(1, 0, 0) - 0.15) < 1e-15);
 	assert(fabs(prev(2, 0, 0) + 0.35) < 1e-15);
-	assert(fabs(prev(3, 0, 0) + 1.45) < 1e-15);
-	assert(fabs(prev(4, 0, 0) - 2.55) < 1e-15);
-	assert(fabs(prev(5, 0, 0) - 3.6) < 1e-15);
-	assert(fabs(prev(6, 0, 0) - 0.35) < 1e-15);
-	assert(fabs(prev(7, 0, 0) + 1.7) < 1e-15);
+	assert(fabs(prev(3, 0, 0) + 1.55) < 1e-15);
+	assert(fabs(prev(4, 0, 0) - 2.65) < 1e-15);
+	assert(fabs(prev(5, 0, 0) - 3.4) < 1e-15);
+	assert(fabs(prev(6, 0, 0) - 0.65) < 1e-15);
+	assert(fabs(prev(7, 0, 0) + 2.1) < 1e-15);
 
 	std::cout << "OK" << std::endl;
-}
-
-void FlattenLayerTest() {
-	cout << "Flatten tests: ";
-
-	FlattenLayer layer(2, 3, 2);
-	Volume input(2, 3, 2);
-
-	input(0, 0, 0) = 1;
-	input(0, 0, 1) = 2;
-	input(0, 1, 0) = 3;
-	input(0, 1, 1) = 4;
-	input(0, 2, 0) = 5;
-	input(0, 2, 1) = 6;
-
-	input(1, 0, 0) = 1;
-	input(1, 0, 1) = 0;
-	input(1, 1, 0) = -1;
-	input(1, 1, 1) = 0;
-	input(1, 2, 0) = 5;
-	input(1, 2, 1) = 0;
-
-	layer.Forward(input);
-	Volume output = layer.GetOutput();
-
-	assert(fabs(output(0, 0, 0) - 1) < 1e-15);
-	assert(fabs(output(1, 0, 0) - 1) < 1e-15);
-	
-	assert(fabs(output(2, 0, 0) - 2) < 1e-15);
-	assert(fabs(output(3, 0, 0) - 0) < 1e-15);
-	
-	assert(fabs(output(4, 0, 0) - 3) < 1e-15);
-	assert(fabs(output(5, 0, 0) + 1) < 1e-15);
-	
-	assert(fabs(output(6, 0, 0) - 4) < 1e-15);
-	assert(fabs(output(7, 0, 0) - 0) < 1e-15);
-	
-	assert(fabs(output(8, 0, 0) - 5) < 1e-15);
-	assert(fabs(output(9, 0, 0) - 5) < 1e-15);
-	
-	assert(fabs(output(10, 0, 0) - 6) < 1e-15);
-	assert(fabs(output(11, 0, 0) - 0) < 1e-15);
-
-	Volume deltas2(2, 3, 2);
-
-	for (int d = 0; d < 2; d++)
-		for (int i = 0; i < 3; i++)
-			for (int j = 0; j < 2; j++)
-				deltas2(d, i, j) = 1;
-
-	for (int i = 0; i < 12; i++)
-		layer.GetDeltas()(i, 0, 0) = output(i, 0, 0);
-	
-	layer.Backward(deltas2);
-
-	assert(fabs(deltas2(0, 0, 0) - 1) < 1e-15);
-	assert(fabs(deltas2(0, 0, 1) - 2) < 1e-15);
-	assert(fabs(deltas2(0, 1, 0) - 3) < 1e-15);
-	assert(fabs(deltas2(0, 1, 1) - 4) < 1e-15);
-	assert(fabs(deltas2(0, 2, 0) - 5) < 1e-15);
-	assert(fabs(deltas2(0, 2, 1) - 6) < 1e-15);
-
-	assert(fabs(deltas2(1, 0, 0) - 1) < 1e-15);
-	assert(fabs(deltas2(1, 0, 1) - 0) < 1e-15);
-	assert(fabs(deltas2(1, 1, 0) + 1) < 1e-15);
-	assert(fabs(deltas2(1, 1, 1) - 0) < 1e-15);
-	assert(fabs(deltas2(1, 2, 0) - 5) < 1e-15);
-	assert(fabs(deltas2(1, 2, 1) - 0) < 1e-15);
-
-	cout << "OK" << endl;
 }
 
 void MaxPoolingLayerTest() {
@@ -171,8 +100,8 @@ void MaxPoolingLayerTest() {
 	input(0, 3, 3) = 4;
 
 
-	layer.Forward(input);
-	Volume output = layer.GetOutput();
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
 
 	assert(output.Width() == 2);
 	assert(output.Height() == 2);
@@ -183,19 +112,17 @@ void MaxPoolingLayerTest() {
 	assert(output(0, 1, 0) == 7);
 	assert(output(0, 1, 1) == 9);
 
-	layer.GetDeltas()(0, 0, 0) = 1.2;
-	layer.GetDeltas()(0, 0, 1) = 1.9;
-	layer.GetDeltas()(0, 1, 0) = 0.9;
-	layer.GetDeltas()(0, 1, 1) = 0.3;
+	Volume deltas(2, 2, 1);
 
-	Volume deltas2(4, 4, 1);
+	deltas(0, 0, 0) = 1.2;
+	deltas(0, 0, 1) = 1.9;
+	deltas(0, 1, 0) = 0.9;
+	deltas(0, 1, 1) = 0.3;
 
-	for (int d = 0; d < 1; d++)
-		for (int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++)
-				deltas2(d, i, j) = 1;
 
-	layer.Backward(deltas2);
+	layer.Backward({deltas}, {input}, true);
+
+	Volume& deltas2 = layer.GetDeltas()[0];
 
 	assert(deltas2(0, 0, 0) == 0);
 	assert(deltas2(0, 0, 1) == 1.2);
@@ -239,16 +166,16 @@ void ConvLayerTest() {
 	for (int d = 0; d < 3; d++)
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 3; j++) {
-				layer.SetFilter(0, d, i, j, f1[index]);
-				layer.SetFilter(1, d, i, j, f2[index]);
+				layer.SetWeight(0, d, i, j, f1[index]);
+				layer.SetWeight(1, d, i, j, f2[index]);
 				index++;
 			}
 
 	layer.SetBias(0, 1);
 	layer.SetBias(1, 0);
 
-	layer.Forward(input);
-	Volume output = layer.GetOutput();
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
 
 	assert(output.Width() == 3);
 	assert(output.Height() == 3);
@@ -274,20 +201,20 @@ void ConvLayerTest() {
 	assert(output(1, 2, 1) == 4);
 	assert(output(1, 2, 2) == 3);
 
-	ConvLayer layer2(4, 4, 1, 1, 3);
+	ConvLayer layer2(4, 4, 1, 1, 3, 0, 1);
 	layer2.SetBias(0, 0);
 
-	layer2.SetFilter(0, 0, 0, 0, 1);
-	layer2.SetFilter(0, 0, 0, 1, 4);
-	layer2.SetFilter(0, 0, 0, 2, 1);
+	layer2.SetWeight(0, 0, 0, 0, 1);
+	layer2.SetWeight(0, 0, 0, 1, 4);
+	layer2.SetWeight(0, 0, 0, 2, 1);
 
-	layer2.SetFilter(0, 0, 1, 0, 1);
-	layer2.SetFilter(0, 0, 1, 1, 4);
-	layer2.SetFilter(0, 0, 1, 2, 3);
+	layer2.SetWeight(0, 0, 1, 0, 1);
+	layer2.SetWeight(0, 0, 1, 1, 4);
+	layer2.SetWeight(0, 0, 1, 2, 3);
 
-	layer2.SetFilter(0, 0, 2, 0, 3);
-	layer2.SetFilter(0, 0, 2, 1, 3);
-	layer2.SetFilter(0, 0, 2, 2, 1);
+	layer2.SetWeight(0, 0, 2, 0, 3);
+	layer2.SetWeight(0, 0, 2, 1, 3);
+	layer2.SetWeight(0, 0, 2, 2, 1);
 
 	Volume X(4, 4, 1);
 
@@ -296,8 +223,8 @@ void ConvLayerTest() {
 	X(0, 2, 0) = 3; X(0, 2, 1) = 6; X(0, 2, 2) = 6; X(0, 2, 3) = 4;
 	X(0, 3, 0) = 6; X(0, 3, 1) = 5; X(0, 3, 2) = 7; X(0, 3, 3) = 8;
 
-	layer2.Forward(X);
-	output = layer2.GetOutput();
+	layer2.Forward({X});
+	output = layer2.GetOutput()[0];
 
 	assert(output.Width() == 2);
 	assert(output.Height() == 2);
@@ -308,18 +235,16 @@ void ConvLayerTest() {
 	assert(output(0, 1, 0) == 126);
 	assert(output(0, 1, 1) == 134);
 
-	layer2.GetDeltas()(0, 0, 0) = 2;
-	layer2.GetDeltas()(0, 0, 1) = 1;
-	layer2.GetDeltas()(0, 1, 0) = 4;
-	layer2.GetDeltas()(0, 1, 1) = 4;
+	Volume deltas(2, 2, 1);
 
-	Volume deltas2(4, 4, 1);
+	deltas(0, 0, 0) = 2;
+	deltas(0, 0, 1) = 1;
+	deltas(0, 1, 0) = 4;
+	deltas(0, 1, 1) = 4;
 
-	for (int i = 0; i < 4; i++)
-		for (int j = 0; j < 4; j++)
-			deltas2(0, i, j) = 1;
+	layer2.Backward({deltas}, {X}, true);
 
-	layer2.Backward(deltas2);
+	Volume deltas2 = layer2.GetDeltas()[0];
 
 	assert(fabs(deltas2(0, 0, 0) - 2) < 1e-14);
 	assert(fabs(deltas2(0, 0, 1) - 9) < 1e-14);
@@ -354,54 +279,70 @@ void DropoutTest() {
 	DropoutLayer layer(1, 1, 10, 0.2);
 
 	for (int i = 0; i < 10; i++)
-		layer.Forward(input);
+		layer.Forward({input});
 
-	layer.ForwardOutput(input);
-	Volume& output = layer.GetOutput();
+	layer.ForwardOutput({input});
+	Volume& output = layer.GetOutput()[0];
 
 	double sum = 0;
 	for (int j = 0; j < 10; j++)
 		sum += output[j];
 
-	assert(fabs(sum - 8) < 1e-14);
+	assert(fabs(sum - 10) < 1e-14);
 	cout << "OK" << endl;
 }
 
 void GradientCheckingTest() {
-	int width = 16;
-	int height = 16;
-	int deep = 3;
+	VolumeSize inputSize;
+	VolumeSize outputSize;
+
+	inputSize.width = 16;
+	inputSize.height = 16;
+	inputSize.deep = 3;
+
+	outputSize.width = 1;
+	outputSize.height = 1;
+	outputSize.deep = 10;
+
+	int batchSize = 3;
 
 	GaussRandom random;
-	Volume input(width, height, deep);
-	Volume output(1, 1, 10);
 
-	CNN cnn(width, height, deep);
-	
-	cnn.AddLayer("conv filters=16 filter_size=3 P=1");
-	cnn.AddLayer("maxpool");
-	cnn.AddLayer("conv filters=5 filter_size=3 P=1");
-	cnn.AddLayer("maxpool");
-	cnn.AddLayer("fullconnected outputs=40 activation=relu");
-	cnn.AddLayer("fullconnected outputs=20 activation=tanh");
-	cnn.AddLayer("fullconnected outputs=10 activation=sigmoid");
-	cnn.AddLayer("softmax");
+	vector<Volume> inputs;
+	vector<Volume> outputs;
 
-	for (int i = 0; i < 2; i++) {
-		input.FillRandom(random, 1);
-		output.FillRandom(random, 1);
+	for (int i = 0; i < batchSize; i++) {
+		inputs.push_back(Volume(inputSize));
+		outputs.push_back(Volume(outputSize));
 
-		cnn.GradientChecking(input, output, ErrorType::BinaryCrossEntropy);
-		cnn.GradientChecking(input, output, ErrorType::CrossEntropy);
-		cnn.GradientChecking(input, output, ErrorType::MSE);
+		inputs[i].FillRandom(random, 1);
+		outputs[i].FillRandom(random, 1);
 	}
+
+	Network network(inputSize.width, inputSize.height, inputSize.deep);
+	
+	network.AddLayer("conv filters=16 filter_size=3 P=1");
+	network.AddLayer("maxpool");
+	network.AddLayer("conv filters=5 filter_size=3 P=1");
+	network.AddLayer("maxpool");
+	network.AddLayer("fullconnected outputs=40 activation=none");
+	network.AddLayer("batchnormalization");
+	network.AddLayer("relu");
+	network.AddLayer("fullconnected outputs=20 activation=tanh");
+	network.AddLayer("batchnormalization");
+	network.AddLayer("fullconnected outputs=16 activation=sigmoid");
+	network.AddLayer("fullconnected outputs=10 activation=none");
+	network.AddLayer("softmax");
+
+	network.GradientChecking(inputs, outputs, LossType::BinaryCrossEntropy);
+	network.GradientChecking(inputs, outputs, LossType::CrossEntropy);
+	network.GradientChecking(inputs, outputs, LossType::MSE);
 }
 
 int main() {
 	ConvLayerTest();
 	MaxPoolingLayerTest();
-	FlattenLayerTest();
-	FullConnectedLayerTest();
+	FullyConnectedLayerTest();
 	DropoutTest();
 	GradientCheckingTest();
 }

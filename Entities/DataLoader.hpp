@@ -7,7 +7,7 @@
 #include <string>
 
 #include "Volume.hpp"
-#include "../CNN.hpp"
+#include "../Network.hpp"
 
 class DataLoader {
 public:
@@ -22,17 +22,17 @@ private:
 
 	std::vector<std::string> SplitByChar(const std::string s, char c = ',') const; // разбиение строки по символу
 	int GetLabelIndex(const std::string &label) const; // индекс класса
-	int GetOutputIndex(CNN &cnn, const Volume& input) const; // получение индекса максимального аргумента
+	int GetOutputIndex(Network &network, const Volume& input) const; // получение индекса максимального аргумента
 
 	Volume GetVolume(const std::vector<std::string> &args, int start = 1);
-	void ReadTrain(const std::string &trainPath, int maxTrainData);
+	void ReadTrain(const std::string &trainPath, size_t maxTrainData);
 	void ReadLabels(const std::string& path); // считывание меток классов
 
 public:
-	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData = 100, double scale = 255);
+	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, size_t maxTrainData = 100, double scale = 255);
 
-	double Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount = -1, bool verbose = false); // проверка точности предсказаний сети
-	void Predict(CNN &cnn, const std::string &testPath, const std::string &predictPath, const std::string &msg = "id,label"); // предсказание сети
+	double Test(Network &network, const std::string &testPath, const std::string &msg, int maxCount = -1, bool verbose = false); // проверка точности предсказаний сети
+	void Predict(Network &network, const std::string &testPath, const std::string &predictPath, const std::string &msg = "id,label"); // предсказание сети
 	void PrintStats() const; // вывод статистики обучающей выборки
 };
 
@@ -69,8 +69,8 @@ int DataLoader::GetLabelIndex(const std::string &label) const {
 }
 
 // получение индекса максимального аргумента
-int DataLoader::GetOutputIndex(CNN &cnn, const Volume& input) const {
-	Volume& output = cnn.GetOutput(input);
+int DataLoader::GetOutputIndex(Network &network, const Volume& input) const {
+	Volume& output = network.GetOutput(input);
 	int imax = 0;
 
 	for (int i = 0; i < output.Deep(); i++)
@@ -96,7 +96,7 @@ Volume DataLoader::GetVolume(const std::vector<std::string> &args, int start) {
 	return input;
 }
 
-void DataLoader::ReadTrain(const std::string &trainPath, int maxTrainData) {
+void DataLoader::ReadTrain(const std::string &trainPath, size_t maxTrainData) {
 	std::ifstream f(trainPath.c_str());
 
 	if (!f)
@@ -156,7 +156,7 @@ void DataLoader::ReadLabels(const std::string& path) {
 	std::cout << "Succesfully loaded " << labels.size() << " labels" << std::endl;
 }
 
-DataLoader::DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, int maxTrainData, double scale) {
+DataLoader::DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, size_t maxTrainData, double scale) {
 	inputSize.width = width;
 	inputSize.height = height;
 	inputSize.deep = deep;
@@ -167,7 +167,7 @@ DataLoader::DataLoader(const std::string &trainPath, int width, int height, int 
 	ReadTrain(trainPath, maxTrainData); // формируем обучающую выборку
 }
 
-double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string &msg, int maxCount, bool verbose) {
+double DataLoader::Test(Network &network, const std::string &testPath, const std::string &msg, int maxCount, bool verbose) {
 	std::ifstream f(testPath.c_str());
 	std::string line;
 
@@ -190,7 +190,7 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 
 
 		Volume input = GetVolume(args);
-		int index = GetOutputIndex(cnn, input);
+		int index = GetOutputIndex(network, input);
 
 		total++;
 		totals[label]++;
@@ -231,7 +231,7 @@ double DataLoader::Test(CNN &cnn, const std::string &testPath, const std::string
 }
 
 // предсказание сети
-void DataLoader::Predict(CNN &cnn, const std::string &testPath, const std::string &predictPath, const std::string &msg) {
+void DataLoader::Predict(Network &network, const std::string &testPath, const std::string &predictPath, const std::string &msg) {
 	std::ifstream f(testPath.c_str());
 	std::ofstream out(predictPath.c_str());
 	std::string line;
@@ -247,7 +247,7 @@ void DataLoader::Predict(CNN &cnn, const std::string &testPath, const std::strin
 		total++;
 
 		Volume input = GetVolume(args, 0);
-		int index = GetOutputIndex(cnn, input);
+		int index = GetOutputIndex(network, input);
 
 		out << total << "," << labels[index] << std::endl;
 		std::cout << total << ": " << labels[index] << "               \r";

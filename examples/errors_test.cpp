@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "../CNN.hpp"
+#include "../Network.hpp"
 #include "../Entities/DataLoader.hpp"
 
 using namespace std;
@@ -19,18 +19,18 @@ int main() {
 	int trainCount = 60000;
 	int testCount = 10000;
 
-	CNN cnn("cnn.txt");
+	Network network("../models/mnist_99.49.txt");
 
-	cnn.PringConfig(); // выводим конфигурацию сети
+	network.PrintConfig(); // выводим конфигурацию сети
 
 	DataLoader loaderTrain(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 	DataLoader loaderTest(test, width, height, deep, labels, testCount); // загружаем проверочные данные
 
-	ErrorType errorType = ErrorType::CrossEntropy;
+	LossType lossType = LossType::CrossEntropy; // функция - кросс энтропия
 	
-	cout << "Train error: " << setprecision(10) << cnn.GetError(loaderTrain.trainInputData, loaderTrain.trainOutputData, errorType) << endl;
-	double train_acc = loaderTrain.Test(cnn, train, "Train accuracy: ", 60000); // проверяем точность на обучающей выборке
+	cout << "Test error: " << setprecision(10) << network.GetError(loaderTest.trainInputData, loaderTest.trainOutputData, lossType) << endl;
+	double test_acc = loaderTest.Test(network, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
 
-	cout << "Test error: " << setprecision(10) << cnn.GetError(loaderTest.trainInputData, loaderTest.trainOutputData, errorType) << endl;
-	double test_acc = loaderTest.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
+	cout << "Train error: " << setprecision(10) << network.GetError(loaderTrain.trainInputData, loaderTrain.trainOutputData, lossType) << endl;
+	double train_acc = loaderTrain.Test(network, train, "Train accuracy: ", 60000); // проверяем точность на обучающей выборке
 }

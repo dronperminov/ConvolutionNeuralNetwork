@@ -1,12 +1,15 @@
 #pragma once
 
 #include <iostream>
+#include <fstream>
 #include <iomanip>
+#include <vector>
+
 #include "NetworkLayer.hpp"
 
 class MaxPoolingLayer : public NetworkLayer {
-	int scale; // коэффициент пулинга
-	Volume maxIndexes; // маска максимальных индексов
+	int scale;
+
 	std::vector<int> di;
 	std::vector<int> dj;
 
@@ -16,19 +19,20 @@ public:
 	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количество обучаемых параметров
 
-	void Forward(const Volume& input); // прямое распространение
-	void Backward(Volume& prevDeltas); // обратное распространение
-	void Save(std::ostream &f); // сохранение слоя в файл
+	void Forward(const std::vector<Volume> &X); // прямое распространение
+	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
+
+	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-MaxPoolingLayer::MaxPoolingLayer(int width, int height, int deep, int scale) :
-	NetworkLayer(width, height, deep, width / scale, height / scale, deep),
-	maxIndexes(width, height, deep), di(height), dj(width)
-{
+MaxPoolingLayer::MaxPoolingLayer(int width, int height, int deep, int scale) : NetworkLayer(width, height, deep, width / scale, height / scale, deep) {
 	if (width % scale != 0 || height % scale != 0)
 		throw std::runtime_error("Unable creating maxpool layer with this scale");
 
 	this->scale = scale;
+
+	di = std::vector<int>(height);
+	dj = std::vector<int>(width);
 
 	for (int i = 0; i < height; i++)
 		di[i] = i / scale;
@@ -52,52 +56,54 @@ int MaxPoolingLayer::GetTrainableParams() const {
 }
 
 // прямое распространение
-void MaxPoolingLayer::Forward(const Volume& input) {
-	#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++) {
-		for (int i = 0; i < inputSize.height; i += scale) {
-			for (int j = 0; j < inputSize.width; j += scale) {
-				int imax = i;
-				int jmax = j;
-				double max = input(d, i, j);
+void MaxPoolingLayer::Forward(const std::vector<Volume> &X) {
+	output = std::vector<Volume>(X.size(), Volume(outputSize));
+	dX = std::vector<Volume>(X.size(), Volume(inputSize));
 
-				int dx = j + scale;
-				int dy = i + scale;
+	#pragma omp parallel for collapse(4)
+	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
+		for (int d = 0; d < inputSize.deep; d++) {
+			for (int i = 0; i < inputSize.height; i += scale) {
+				for (int j = 0; j < inputSize.width; j += scale) {
+					int imax = i;
+					int jmax = j;
+					double max = X[batchIndex](d, i, j);
 
-				for (int y = i; y < dy; y++) {
-					for (int x = j; x < dx; x++) {
-						double value = input(d, y, x);
-						maxIndexes(d, y, x) = 0;
+					for (int y = i; y < i + scale; y++) {
+						for (int x = j; x < j + scale; x++) {
+							double value = X[batchIndex](d, y, x);
+							dX[batchIndex](d, y, x) = 0;
 
-						if (value > max) {
-							max = value;
-							imax = y;
-							jmax = x;
+							if (value > max) {
+								max = value;
+								imax = y;
+								jmax = x;
+							}
 						}
 					}
+
+					output[batchIndex](d, di[i], dj[j]) = max;
+					dX[batchIndex](d, imax, jmax) = 1;
 				}
-
-				int i1 = di[i];
-				int j1 = dj[j];
-
-				output(d, i1, j1) = max;
-				deltas(d, i1, j1) = 1;
-				maxIndexes(d, imax, jmax) = 1;
 			}
 		}
 	}
 }
 
 // обратное распространение
-void MaxPoolingLayer::Backward(Volume& prevDeltas) {
-	#pragma omp parallel for collapse(3)
-	for (int d = 0; d < inputSize.deep; d++)
-		for (int i = 0; i < inputSize.height; i++)
-			for (int j = 0; j < inputSize.width; j++)
-				prevDeltas(d, i, j) *= maxIndexes(d, i, j) * deltas(d, di[i], dj[j]);
+void MaxPoolingLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
+	if (!calc_dX)
+		return;
+
+	#pragma omp parallel for collapse(4)
+	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++)
+		for (int d = 0; d < inputSize.deep; d++)
+			for (int i = 0; i < inputSize.height; i++)
+				for (int j = 0; j < inputSize.width; j++)
+					dX[batchIndex](d, i, j) *= dout[batchIndex](d, di[i], dj[j]);
 }
 
 // сохранение слоя в файл
-void MaxPoolingLayer::Save(std::ostream &f) {
+void MaxPoolingLayer::Save(std::ofstream &f) const {
 	f << "maxpool " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << scale << std::endl;
 }

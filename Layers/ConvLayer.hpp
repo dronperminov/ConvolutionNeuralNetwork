@@ -4,24 +4,19 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+
 #include "NetworkLayer.hpp"
 
-enum class Padding {
-	Full,
-	Same,
-	Valid
-};
-
 class ConvLayer : public NetworkLayer {
-	std::vector<Volume> filters; // фильтры
-	std::vector<Volume> dws; // изменения фильтров
-	std::vector<Volume> dwws; // дополнительные изменения фильтров
-	std::vector<Volume> gradFilters; // градиенты фильтров
+	std::vector<Volume> W; // фильтры
+	std::vector<Volume> dW; // градиенты фильтров
+	std::vector<std::vector<Volume>> paramsW; // параметры фильтров
 
-	std::vector<double> biases; // смещения
-	std::vector<double> db; // изменения смещений
-	std::vector<double> dbb; // дополнительные изменения смещений
-	std::vector<double> gradBiases; // градиенты смещений
+	std::vector<double> b; // смещения
+	std::vector<double> db; // градиенты смещений
+	std::vector<std::vector<double>> paramsb; // параметры смещений
+
+	std::vector<Volume> df;
 
 	int P; // дополнение нулями
 	int S; // шаг свёртки
@@ -30,94 +25,108 @@ class ConvLayer : public NetworkLayer {
 	int fs; // размер фильтров
 	int fd; // глубина фильтров
 
+	void InitParams(); // инициализация параметров для обучения
+	void InitWeights(); // инициализация весовых коэффициентов
+	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
+
 public:
-	ConvLayer(int width, int height, int deep, int fc, int fs, int P = 0, int S = 1);
+	ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S);
 	ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S, std::ifstream &f);
 
-	void PrintConfig() const;
-	int GetTrainableParams() const; // получение количество обучаемых параметров
-	
-	void Forward(const Volume& input); // прямое распространение
-	void Backward(Volume& prevDeltas); // обратное распространение
-	void UpdateWeights(const Optimizer& optimizer, const Volume& input); // обновление весовых коэффициентов
-	
-	void CalculateGradients(const Volume &input); // вычисление градиентов
-	void UpdateWeights(const Optimizer& optimizer, int batchSize); // обновление весовых коэффициентов
+	void PrintConfig() const; // вывод конфигурации
+	int GetTrainableParams() const; // получение количества обучаемых параметров
+
+	void Forward(const std::vector<Volume> &X); // прямое распространение
+	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
+	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
 
 	void ResetCache(); // сброс параметров
-	void Save(std::ostream &f); // сохранение слоя в файл
+	void Save(std::ofstream &f) const; // сохранение слоя в файл
 
-	void SetFilter(int index, int d, int i, int j, double weight); // установка веса фильтра
-	void SetBias(int index, double bias); // установка веса смещения
+	void SetWeight(int index, int i, int j, int k, double weight);
+	void SetBias(int index, double bias);
 
 	void SetParam(int index, double weight); // установка веса по индексу
 	double GetParam(int index) const; // получение веса по индексу
-	double GetGradient(int index, const Volume &input) const; // получение градиента веса по индексу
+	double GetGradient(int index) const; // получение градиента веса по индексу
+	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S) :
-	NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
-	
+ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S) : NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
 	if ((width - fs + 2 * P) % S != 0 || (height - fs + 2 * P) % S != 0)
 		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
+
+	this->P = P;
+	this->S = S;
 
 	this->fc = fc;
 	this->fs = fs;
 	this->fd = deep;
+
+	for (int i = 0; i < fc; i++) {
+		W.push_back(Volume(fs, fs, fd));
+		dW.push_back(Volume(fs, fs, fd));
+
+		b.push_back(0);
+		db.push_back(0);
+	}
+
+	InitParams();
+	InitWeights();
+}
+
+ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
+	if ((width - fs + 2 * P) % S != 0 || (height - fs + 2 * P) % S != 0)
+		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
+
 	this->P = P;
 	this->S = S;
 
+	this->fc = fc;
+	this->fs = fs;
+	this->fd = deep;
+
 	for (int i = 0; i < fc; i++) {
-		filters.push_back(Volume(fs, fs, fd));
-		dws.push_back(Volume(fs, fs, fd));
-		dwws.push_back(Volume(fs, fs, fd));
-		gradFilters.push_back(Volume(fs, fs, fd));
+		W.push_back(Volume(fs, fs, fd));
+		dW.push_back(Volume(fs, fs, fd));
 
-		biases.push_back(0);
+		b.push_back(0);
 		db.push_back(0);
-		dbb.push_back(0);
-		gradBiases.push_back(0);
+	}
 
-		filters[i].FillRandom(random, sqrt(2.0 / (fs * fs * fd)));
-		biases[i] = 0.01;
+	InitParams();
+	LoadWeights(f);
+}
+
+// инициализация параметров для обучения
+void ConvLayer::InitParams() {
+	for (int i = 0; i < OPTIMIZER_PARAMS_COUNT; i++) {
+		paramsW.push_back(std::vector<Volume>(fc, Volume(fs, fs, fd)));
+		paramsb.push_back(std::vector<double>(fc, 0));
 	}
 }
 
-ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S, std::ifstream &f) :
-	NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
-	
-	if ((width - fs + 2 * P) % S != 0 || (height - fs + 2 * P) % S != 0)
-		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
-
-	this->fc = fc;
-	this->fs = fs;
-	this->fd = deep;
-	this->P = P;
-	this->S = S;
-
+// инициализация весовых коэффициентов
+void ConvLayer::InitWeights() {
 	for (int index = 0; index < fc; index++) {
-		filters.push_back(Volume(fs, fs, fd));
-		dws.push_back(Volume(fs, fs, fd));
-		dwws.push_back(Volume(fs, fs, fd));
-		gradFilters.push_back(Volume(fs, fs, fd));
-		
-		biases.push_back(0);
-		db.push_back(0);
-		dbb.push_back(0);
-		gradBiases.push_back(0);
+		for (int i = 0; i < fs; i++)
+			for (int j = 0; j < fs; j++)
+				for (int k = 0; k < fd; k++)
+					W[index](k, i, j) = random.Next(sqrt(2.0 / (fs*fs)), 0);
 
-		std::string filter;
-		f >> filter;
+		b[index] = 0.01;
+	}
+}
 
-		if (filter != "filter")
-			throw std::runtime_error("Invalid convolution layer description");
-
+// считывание весовых коэффициентов из файла
+void ConvLayer::LoadWeights(std::ifstream &f) {
+	for (int index = 0; index < fc; index++) {
 		for (int d = 0; d < fd; d++)
 			for (int i = 0; i < fs; i++)
 				for (int j = 0; j < fs; j++)
-					f >> filters[index](d, i, j);
+					f >> W[index](d, i, j);
 
-		f >> biases[index];
+		f >> b[index];
 	}
 }
 
@@ -135,45 +144,50 @@ int ConvLayer::GetTrainableParams() const {
 }
 
 // прямое распространение
-void ConvLayer::Forward(const Volume& input) {
+void ConvLayer::Forward(const std::vector<Volume> &X) {
+	output = std::vector<Volume>(X.size(), Volume(outputSize));
+	df = std::vector<Volume>(X.size(), Volume(outputSize));
+
 	// выполняем свёртку с каждым фильтром
-	#pragma omp parallel for
-	for (int index = 0; index < fc; index++) {
-		for (int y = 0, y0 = -P; y < outputSize.height; y++, y0 += S) {
-			int imin = std::max(-y0, 0);
-			int imax = std::min(fs, inputSize.height - y0);
+	#pragma omp parallel for collapse(2)
+	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
+		for (int index = 0; index < fc; index++) {
+			for (int y = 0, y0 = -P; y < outputSize.height; y++, y0 += S) {
+				int imin = std::max(-y0, 0);
+				int imax = std::min(fs, inputSize.height - y0);
 
-			for (int x = 0, x0 = -P; x < outputSize.width; x++, x0 += S) {
-				int jmin = std::max(-x0, 0);
-				int jmax = std::min(fs, inputSize.width - x0);
+				for (int x = 0, x0 = -P; x < outputSize.width; x++, x0 += S) {
+					int jmin = std::max(-x0, 0);
+					int jmax = std::min(fs, inputSize.width - x0);
 
-				double sum = biases[index]; // значение элемента ij результирующей матрицы
+					double sum = b[index]; // значение элемента ij результирующей матрицы
 
-				// проходимся по всем значениям фильтра
-				for (int i = imin; i < imax; i++) {
-					int i0 = y0 + i;
+					// проходимся по всем значениям фильтра
+					for (int i = imin; i < imax; i++) {
+						int i0 = y0 + i;
 
-					for (int j = jmin; j < jmax; j++) {
-						int j0 = x0 + j;
+						for (int j = jmin; j < jmax; j++) {
+							int j0 = x0 + j;
 
-						for (int k = 0; k < fd; k++) {
-							double weight = filters[index](k, i, j); // значение фильтра
-							double value = input(k, i0, j0); // значение входного объёма
+							for (int k = 0; k < fd; k++) {
+								double weight = W[index](k, i, j); // значение фильтра
+								double value = X[batchIndex](k, i0, j0); // значение входного объёма
 
-							sum += weight * value; // прибавляем взвешенное произведение
+								sum += weight * value; // прибавляем взвешенное произведение
+							}
+
 						}
-
 					}
-				}
 
-				// записываем значение в матрицу
-				if (sum > 0) {
-					output(index, y, x) = sum;
-					deltas(index, y, x) = 1;
-				}
-				else {
-					output(index, y, x) = 0;
-					deltas(index, y, x) = 0;
+					// записываем значение в матрицу
+					if (sum > 0) {
+						output[batchIndex](index, y, x) = sum;
+						df[batchIndex](index, y, x) = 1;
+					}
+					else {
+						output[batchIndex](index, y, x) = 0;
+						df[batchIndex](index, y, x) = 0;
+					}
 				}
 			}
 		}
@@ -181,188 +195,140 @@ void ConvLayer::Forward(const Volume& input) {
 }
 
 // обратное распространение
-void ConvLayer::Backward(Volume& prevDeltas) {
-	int P = fs - 1 - this->P;
+void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
+	if (calc_dX) {
+		dX = std::vector<Volume>(dout.size(), Volume(inputSize));
+		int P = fs - 1 - this->P;
 
-	#pragma omp parallel for
-	for (int d = 0; d < inputSize.deep; d++) {
-		for (int y = 0, y0 = -P; y < inputSize.height; y++, y0 += S) {
-			int imin = std::max(-y0, 0);
-			int imax = std::min(fs, outputSize.height - y0);
+		#pragma omp parallel for collapse(2)
+		for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
+			for (int d = 0; d < inputSize.deep; d++) {
+				for (int y = 0, y0 = -P; y < inputSize.height; y++, y0 += S) {
+					int imin = std::max(-y0, 0);
+					int imax = std::min(fs, outputSize.height - y0);
 
-			for (int x = 0, x0 = -P; x < inputSize.width; x++, x0 += S) {
-				int jmin = std::max(-x0, 0);
-				int jmax = std::min(fs, outputSize.width - x0);
+					for (int x = 0, x0 = -P; x < inputSize.width; x++, x0 += S) {
+						int jmin = std::max(-x0, 0);
+						int jmax = std::min(fs, outputSize.width - x0);
 
-				double sum = 0; // значение элемента ij результирующей матрицы
+						double sum = 0; // значение элемента ij результирующей матрицы
 
-				for (int i = imin; i < imax; i++) {
-					int i0 = y0 + i;
+						for (int i = imin; i < imax; i++) {
+							int i0 = y0 + i;
 
-					for (int j = jmin; j < jmax; j++) {
-						int j0 = x0 + j;
+							for (int j = jmin; j < jmax; j++) {
+								int j0 = x0 + j;
 
-						for (int k = 0; k < fc; k++) {
-							double weight = filters[k](d, fs - 1 - i, fs - 1 - j); // значение фильтра
-							double value = deltas(k, i0, j0); // значение входного объёма
+								for (int k = 0; k < fc; k++) {
+									double weight = W[k](d, fs - 1 - i, fs - 1 - j); // значение фильтра
+									double value = dout[batchIndex](k, i0, j0) * df[batchIndex](k, i0, j0); // значение входного объёма
 
-							sum += weight * value; // прибавляем взвешенное произведение
+									sum += weight * value; // прибавляем взвешенное произведение
+								}
+
+							}
 						}
 
+						dX[batchIndex](d, y, x) = sum;
 					}
 				}
-
-				prevDeltas(d, y, x) *= sum;
 			}
+		}
+	}
+
+	#pragma omp parallel for collapse(2) 
+	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
+		for (int index = 0; index < fc; index++) {
+			for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
+				int imin = std::max(-y0, 0);
+				int imax = std::min(outputSize.height, inputSize.height - y0);
+
+				for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
+					int jmin = std::max(-x0, 0);
+					int jmax = std::min(outputSize.width, inputSize.width - x0);
+
+					for (int d = 0; d < fd; d++) {
+						double sum = 0;
+
+						for (int i = imin; i < imax; i++) {
+							int i0 = y0 + i;
+
+							for (int j = jmin; j < jmax; j++) {
+								int j0 = x0 + j;
+
+								double weight = dout[batchIndex](index, i, j) * df[batchIndex](index, i, j); // значение фильтра
+								double value = X[batchIndex](d, i0, j0); // значение входного объёма
+
+								sum += weight * value; // прибавляем взвешенное произведение
+							}
+						}
+
+						#pragma omp atomic
+						dW[index](d, y, x) += sum;
+					}
+				}
+			}
+
+			for (int i = 0; i < outputSize.height; i++)
+				for (int j = 0; j < outputSize.width; j++)
+					#pragma omp atomic
+					db[index] += dout[batchIndex](index, i, j) * df[batchIndex](index, i, j);
 		}
 	}
 }
 
 // обновление весовых коэффициентов
-void ConvLayer::UpdateWeights(const Optimizer& optimizer, const Volume& input) {
+void ConvLayer::UpdateWeights(const Optimizer &optimizer) {
+	int batchSize = output.size();
+	int total = fd * fs * fs;
+
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
-		for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
-			int imin = std::max(-y0, 0);
-			int imax = std::min(outputSize.height, inputSize.height - y0);
-
-			for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
-				int jmin = std::max(-x0, 0);
-				int jmax = std::min(outputSize.width, inputSize.width - x0);
-
-				for (int d = 0; d < fd; d++) {
-					double sum = 0;
-
-					for (int i = imin; i < imax; i++) {
-						int i0 = y0 + i;
-
-						for (int j = jmin; j < jmax; j++) {
-							int j0 = x0 + j;
-
-							double weight = deltas(index, i, j); // значение фильтра
-							double value = input(d, i0, j0); // значение входного объёма
-
-							sum += weight * value; // прибавляем взвешенное произведение
-						}
-					}
-
-					optimizer.Update(sum, dws[index](d, y, x), dwws[index](d, y, x), filters[index](d, y, x));
-				}
-			}
+		for (int i = 0; i < total; i++) {
+			optimizer.Update(dW[index][i] / batchSize, paramsW[0][index][i], paramsW[1][index][i], W[index][i]);
+			dW[index][i] = 0;
 		}
 
-		double dbi = 0;
-		
-		#pragma omp parallel for collapse(2)
-		for (int i = 0; i < outputSize.height; i++)
-			for (int j = 0; j < outputSize.width; j++)
-				dbi += deltas(index, i, j);
-
-		optimizer.Update(dbi, db[index], dbb[index], biases[index]);
-	}
-}
-
-// вычисление градиентов
-void ConvLayer::CalculateGradients(const Volume &input) {
-	#pragma omp parallel for
-	for (int index = 0; index < fc; index++) {
-		for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
-			int imin = std::max(-y0, 0);
-			int imax = std::min(outputSize.height, inputSize.height - y0);
-
-			for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
-				int jmin = std::max(-x0, 0);
-				int jmax = std::min(outputSize.width, inputSize.width - x0);
-
-				for (int d = 0; d < fd; d++) {
-					double sum = 0;
-
-					for (int i = imin; i < imax; i++) {
-						int i0 = y0 + i;
-
-						for (int j = jmin; j < jmax; j++) {
-							int j0 = x0 + j;
-
-							double weight = deltas(index, i, j); // значение фильтра
-							double value = input(d, i0, j0); // значение входного объёма
-
-							sum += weight * value; // прибавляем взвешенное произведение
-						}
-					}
-
-					gradFilters[index](d, y, x) += sum;
-				}
-			}
-		}
-
-		#pragma omp parallel for collapse(2)
-		for (int i = 0; i < outputSize.height; i++)
-			for (int j = 0; j < outputSize.width; j++)
-				gradBiases[index] += deltas(index, i, j);
-	}
-}
-
-// обновление весовых коэффициентов
-void ConvLayer::UpdateWeights(const Optimizer& optimizer, int batchSize) {
-	#pragma omp parallel for
-	for (int index = 0; index < fc; index++) {
-		for (int d = 0; d < fd; d++) {
-			for (int i = 0; i < fs; i++) {
-				for (int j = 0; j < fs; j++) {
-					optimizer.Update(gradFilters[index](d, i, j) / batchSize, dws[index](d, i, j), dwws[index](d, i, j), filters[index](d, i, j));
-					gradFilters[index](d, i, j) = 0;
-				}
-			}
-		}
-
-		optimizer.Update(gradBiases[index] / batchSize, db[index], dbb[index], biases[index]);
-		gradBiases[index] = 0;
+		optimizer.Update(db[index] / batchSize, paramsb[0][index], paramsb[1][index], b[index]);
+		db[index] = 0;
 	}
 }
 
 // сброс параметров
 void ConvLayer::ResetCache() {
-	#pragma omp parallel for
-	for (int index = 0; index < fc; index++) {
-		for (int k = 0; k < fd; k++) {
-			for (int i = 0; i < fs; i++) {
-				for (int j = 0; j < fs; j++) {
-					dws[index](k, i, j) = 0;
-					dwws[index](k, i, j) = 0;
-				}
-			}
-		}
+	int total = fd * fs * fs;
 
-		db[index] = 0;
-		dbb[index] = 0;
+	for (int index = 0; index < OPTIMIZER_PARAMS_COUNT; index++) {
+		for (int i = 0; i < fc; i++) {
+			for (int j = 0; j < total; j++)
+				paramsW[index][i][j] = 0;
+
+			paramsb[index][i] = 0;
+		}
 	}
 }
 
 // сохранение слоя в файл
-void ConvLayer::Save(std::ostream &f) {
+void ConvLayer::Save(std::ofstream &f) const {
 	f << "conv " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " ";
 	f << fs << " " << fc << " " << P << " " << S << std::endl;
 
 	for (int index = 0; index < fc; index++) {
-		f << "filter";
-
 		for (int d = 0; d < fd; d++)
 			for (int i = 0; i < fs; i++)
 				for (int j = 0; j < fs; j++)
-					f << " " << std::setprecision(15) << filters[index](d, i, j);
+					f << std::setprecision(15) << W[index](d, i, j) << " ";
 
-		f << " " << std::setprecision(15) << biases[index] << std::endl;
+		f << std::setprecision(15) << b[index] << std::endl;
 	}
 }
 
-// установка веса фильтра
-void ConvLayer::SetFilter(int index, int d, int i, int j, double weight) {
-	filters[index](d, i, j) = weight;
+void ConvLayer::SetWeight(int index, int i, int j, int k, double weight) {
+	W[index](i, j, k) = weight;
 }
 
-// установка веса смещения
 void ConvLayer::SetBias(int index, double bias) {
-	biases[index] = bias;
+	b[index] = bias;
 }
 
 // установка веса по индексу
@@ -372,10 +338,10 @@ void ConvLayer::SetParam(int index, double weight) {
 	int windex = index % params;
 
 	if (windex == params - 1) {
-		biases[findex] = weight;
+		b[findex] = weight;
 	}
 	else {
-		filters[findex][windex] = weight;
+		W[findex][windex] = weight;
 	}
 }
 
@@ -386,58 +352,31 @@ double ConvLayer::GetParam(int index) const {
 	int windex = index % params;
 
 	if (windex == params - 1)
-		return biases[findex];
+		return b[findex];
 
-	return filters[findex][windex];
+	return W[findex][windex];
 }
 
 // получение градиента веса по индексу
-double ConvLayer::GetGradient(int gradIndex, const Volume &input) const {
+double ConvLayer::GetGradient(int index) const {
 	int params = fs * fs * fd + 1;
-	int index = gradIndex / params;
-	int windex = gradIndex % params;
+	int findex = index / params;
+	int windex = index % params;
 
-	if (windex == params - 1) {
-		double gradBias = 0;
+	if (windex == params - 1)
+		return db[findex];
 
-		for (int i = 0; i < outputSize.height; i++)
-			for (int j = 0; j < outputSize.width; j++)
-				gradBias += deltas(index, i, j);
+	return dW[findex][windex];
+}
 
-		return gradBias;
-	}
-	
-	Volume gradFilter(fs, fs, fd);
+// обнуление градиента веса по индексу
+void ConvLayer::ZeroGradient(int index) {
+	int params = fs * fs * fd + 1;
+	int findex = index / params;
+	int windex = index % params;
 
-	for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
-		int imin = std::max(-y0, 0);
-		int imax = std::min(outputSize.height, inputSize.height - y0);
-
-		for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
-			int jmin = std::max(-x0, 0);
-			int jmax = std::min(outputSize.width, inputSize.width - x0);
-
-			for (int d = 0; d < fd; d++) {
-				double sum = 0;
-
-				for (int i = imin; i < imax; i++) {
-					int i0 = y0 + i;
-
-					for (int j = jmin; j < jmax; j++) {
-						int j0 = x0 + j;
-
-						double weight = deltas(index, i, j); // значение фильтра
-						double value = input(d, i0, j0); // значение входного объёма
-
-						sum += weight * value; // прибавляем взвешенное произведение
-					}
-				}
-
-				gradFilter(d, y, x) += sum;
-			}
-		}
-
-	}
-
-	return gradFilter[windex];
+	if (windex == params - 1)
+		db[findex] = 0;
+	else
+		dW[findex][windex] = 0;
 }

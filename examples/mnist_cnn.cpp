@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "../CNN.hpp"
+#include "../Network.hpp"
 #include "../Entities/DataLoader.hpp"
 
 using namespace std;
@@ -19,25 +19,27 @@ int main() {
 
 	double learningRate = 0.0015; // скорость обучения
 	int batchSize = 64; // размер батча
-	int maxEpochs = 20; // число эпох обучения
+	int maxEpochs = 50; // число эпох обучения
 
-	CNN cnn(width, height, deep);
+	Network network(width, height, deep);
 	
-	cnn.AddLayer("conv filter_size=5 filters=16");
-	cnn.AddLayer("maxpool");
-	cnn.AddLayer("dropout p=0.2");
+	network.AddLayer("conv filter_size=5 filters=16");
+	network.AddLayer("maxpool");
+	network.AddLayer("dropout p=0.2");
 
-	cnn.AddLayer("conv filter_size=5 filters=32");
-	cnn.AddLayer("maxpool");
-	cnn.AddLayer("dropout p=0.2");
+	network.AddLayer("conv filter_size=5 filters=32");
+	network.AddLayer("maxpool");
+	network.AddLayer("dropout p=0.2");
 
-	cnn.AddLayer("fullconnected outputs=128 activation=relu");
-	cnn.AddLayer("dropout p=0.2");
+	network.AddLayer("fullconnected outputs=128");
+	network.AddLayer("batchnormalization");
+	network.AddLayer("relu");
+	network.AddLayer("dropout p=0.2");
 
-	cnn.AddLayer("fullconnected outputs=10");
-	cnn.AddLayer("softmax");
+	network.AddLayer("fullconnected outputs=10");
+	network.AddLayer("softmax");
 
-	cnn.PringConfig(); // выводим конфигурацию сети
+	network.PrintConfig(); // выводим конфигурацию сети
 
 	Optimizer optimizer = Optimizer::AdaMax(learningRate); // оптимизатор - Adamax
 
@@ -50,17 +52,17 @@ int main() {
 		cout << (i + 1) << ":" << endl;
 
 		optimizer.SetEpoch(i + 1);
-		double error = cnn.TrainMiniBatch(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, ErrorType::CrossEntropy); // обучаем в течение одной эпохи
+		double error = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy); // обучаем в течение одной эпохи
 
 		cout << "loss: " << error << endl;
-		double test_acc = loader.Test(cnn, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
+		double test_acc = loader.Test(network, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
 
 		// если тестовая точность стала выше максимальной
 		if (bestAcc <= test_acc) {
-			loader.Test(cnn, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
+			loader.Test(network, train, "Train accuracy: ", 10000); // проверяем точность на обучающей выборке
 
 			bestAcc = test_acc; // обновляем максимальную точность
-			cnn.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
+			network.Save(to_string(test_acc) + ".txt"); // и сохраняем сеть
 		}
 
 		cout << "Best accuracy: " << bestAcc << endl; // выводим лучшую точность

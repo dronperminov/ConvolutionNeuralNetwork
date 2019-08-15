@@ -26,8 +26,11 @@ class Volume {
 	int dh;
 	int dw;
 
+	void Init(int width, int height, int deep);
+
 public:
 	Volume(int width, int height, int deep); // создание из размеров
+	Volume(VolumeSize size);
 
 	double& operator()(int d, int i, int j); // индексация
 	double operator()(int d, int i, int j) const; // индексация
@@ -44,8 +47,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const Volume &volume);
 };
 
-// создание из размеров
-Volume::Volume(int width, int height, int deep) {
+void Volume::Init(int width, int height, int deep) {
 	size.width = width;
 	size.height = height;
 	size.deep = deep;
@@ -57,6 +59,17 @@ Volume::Volume(int width, int height, int deep) {
 	values = std::vector<double>(deep * height * width, 0);
 }
 
+// создание из размеров
+Volume::Volume(int width, int height, int deep) {
+	Init(width, height, deep);	
+}
+
+// создание из размера
+Volume::Volume(VolumeSize size) {
+	Init(size.width, size.height, size.deep);
+}
+
+#include <cassert>
 // индексация
 double& Volume::operator()(int d, int i, int j) {
 	return values[i * dw + j * size.deep + d];

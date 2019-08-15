@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "../CNN.hpp"
+#include "../Network.hpp"
 #include "../Entities/DataLoader.hpp"
 
 using namespace std;
@@ -35,19 +35,18 @@ int main() {
 	int deep = 1; // количество каналов
 
 	int trainCount = 10000; // число обучающих примеров
-	double learningRate = 0.01;
-	int maxEpochs = 5; // число эпох обучения
-	ErrorType errorType = ErrorType::CrossEntropy; // функция ошибки
 
-	vector<CNN> cnns;
+	double learningRate = 0.01; // скорость обучения
+	int batchSize = 64; // размер батча
+	int maxEpochs = 5; // число эпох обучения
+	LossType lossType = LossType::CrossEntropy; // функция ошибки
+
+	vector<Network> networks;
 	vector<Optimizer> optimizers;
 	vector<string> names;
 
 	names.push_back("SGD");
 	optimizers.push_back(Optimizer::SGD(learningRate));
-
-	names.push_back("SGDm 0.4");
-	optimizers.push_back(Optimizer::SGDm(learningRate, 0.4));
 
 	names.push_back("SGDm 0.9");
 	optimizers.push_back(Optimizer::SGDm(learningRate));
@@ -77,14 +76,15 @@ int main() {
 	optimizers.push_back(Optimizer::Nadam(learningRate));
 
 	for (size_t i = 0; i < optimizers.size(); i++) {
-		cnns.push_back(CNN(width, height, deep));
+		networks.push_back(Network(width, height, deep));
 
-		cnns[i].AddLayer("fullconnected outputs=128 activation=sigmoid");
-		cnns[i].AddLayer("fullconnected outputs=10");
-		cnns[i].AddLayer("softmax");
+		networks[i].AddLayer("fullconnected outputs=128 activation=relu");
+		networks[i].AddLayer("batchnormalization");
+		networks[i].AddLayer("fullconnected outputs=10");
+		networks[i].AddLayer("softmax");
 	}
 
-	cnns[0].PringConfig(); // выводим конфигурацию сети
+	networks[0].PrintConfig(); // выводим конфигурацию сети
 
 	cout << "Optimizers:" << endl;
 
@@ -109,9 +109,9 @@ int main() {
 		for (int j = 0; j < maxEpochs; j++) {
 			optimizers[i].SetEpoch(j + 1);
 
-			double error = cnns[i].Train(loader.trainInputData, loader.trainOutputData, 1, optimizers[i], errorType); // обучаем в течение одной эпохи
-			double test_acc = loader.Test(cnns[i], test, "", 10000); // проверяем точность на тестовой выборке
-			double train_acc = loader.Test(cnns[i], train, "", 10000); // проверяем точность на обучающей выборке
+			double error = networks[i].Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizers[i], lossType); // обучаем в течение одной эпохи
+			double test_acc = loader.Test(networks[i], test, "", 10000); // проверяем точность на тестовой выборке
+			double train_acc = loader.Test(networks[i], train, "", 10000); // проверяем точность на обучающей выборке
 
 			errors.push_back(error);
 			trainAcc.push_back(train_acc);
