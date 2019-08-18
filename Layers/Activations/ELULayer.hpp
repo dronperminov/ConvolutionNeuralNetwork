@@ -5,13 +5,14 @@
 #include <iomanip>
 #include <vector>
 
-#include "NetworkLayer.hpp"
+#include "../NetworkLayer.hpp"
 
-class ReLULayer : public NetworkLayer {
+class ELULayer : public NetworkLayer {
 	int total;
+	double alpha;
 
 public:
-	ReLULayer(int width, int height, int deep);
+	ELULayer(int width, int height, int deep, double alpha);
 
 	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
@@ -22,26 +23,28 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-ReLULayer::ReLULayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
+ELULayer::ELULayer(int width, int height, int deep, double alpha) : NetworkLayer(width, height, deep, width, height, deep) {
+	this->alpha = alpha;
 	total = width * height * deep;
 }
 
 // вывод конфигурации
-void ReLULayer::PrintConfig() const {
-	std::cout << "| relu           | ";
+void ELULayer::PrintConfig() const {
+	std::cout << "| elu            | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << "           0 | ";
+	std::cout << "alpha: " << alpha;
 	std::cout << std::endl;
 }
 
 // получение количества обучаемых параметров
-int ReLULayer::GetTrainableParams() const {
+int ELULayer::GetTrainableParams() const {
 	return 0;
 }
 
 // прямое распространение
-void ReLULayer::Forward(const std::vector<Volume> &X) {
+void ELULayer::Forward(const std::vector<Volume> &X) {
 	output = std::vector<Volume>(X.size(), Volume(outputSize));
 	dX = std::vector<Volume>(X.size(), Volume(inputSize));
 
@@ -53,15 +56,15 @@ void ReLULayer::Forward(const std::vector<Volume> &X) {
 				dX[batchIndex][i] = 1;
 			}
 			else {
-				output[batchIndex][i] = 0;
-				dX[batchIndex][i] = 0;
+				output[batchIndex][i] = alpha * (exp(X[batchIndex][i]) - 1);
+				dX[batchIndex][i] = alpha * exp(X[batchIndex][i]);
 			}
 		}
 	}
 }
 
 // обратное распространение
-void ReLULayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
+void ELULayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	if (!calc_dX)
 		return;
 
@@ -72,6 +75,6 @@ void ReLULayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 }
 
 // сохранение слоя в файл
-void ReLULayer::Save(std::ofstream &f) const {
-	f << "relu " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+void ELULayer::Save(std::ofstream &f) const {
+	f << "elu " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << alpha << std::endl;
 }

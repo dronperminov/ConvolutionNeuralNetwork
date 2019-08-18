@@ -10,10 +10,17 @@
 #include "Layers/ConvLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
-#include "Layers/SoftmaxLayer.hpp"
-#include "Layers/ReLULayer.hpp"
+
 #include "Layers/DropoutLayer.hpp"
 #include "Layers/BatchNormalizationLayer.hpp"
+
+#include "Layers/Activations/SigmoidLayer.hpp"
+#include "Layers/Activations/TanhLayer.hpp"
+#include "Layers/Activations/ReLULayer.hpp"
+#include "Layers/Activations/ELULayer.hpp"
+#include "Layers/Activations/ParametricReLULayer.hpp"
+#include "Layers/Activations/SwishLayer.hpp"
+#include "Layers/Activations/SoftmaxLayer.hpp"
 
 #include "Entities/ArgParser.hpp"
 #include "Entities/LossFunction.hpp"
@@ -139,8 +146,25 @@ void Network::AddLayer(const std::string& layerConf) {
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size.width, size.height, size.deep);
 	}
+	else if (parser["sigmoid"]) {
+		layer = new SigmoidLayer(size.width, size.height, size.deep);
+	}
+	else if (parser["tanh"]) {
+		layer = new TanhLayer(size.width, size.height, size.deep);
+	}
 	else if (parser["relu"]) {
 		layer = new ReLULayer(size.width, size.height, size.deep);
+	}
+	else if (parser["elu"]) {
+		std::string alpha = parser.Get("alpha", "1");
+
+		layer = new ELULayer(size.width, size.height, size.deep, std::stod(alpha));
+	}
+	else if (parser["prelu"] || parser["parametricrelu"]) {
+		layer = new ParametricReLULayer(size.width, size.height, size.deep);
+	}
+	else if (parser["swish"]) {
+		layer = new SwishLayer(size.width, size.height, size.deep);
 	}
 	else if (parser["dropout"]) {
 		std::string p = parser.Get("p", "0.5");
@@ -320,11 +344,29 @@ void Network::Load(const std::string &path, bool verbose) {
 
 			layer = new BatchNormalizationLayer(w, h, d, momentum, f);
 		}
-		else if (layerType == "softmax") {
-			layer = new SoftmaxLayer(w, h, d);
+		else if (layerType == "sigmoid") {
+			layer = new SigmoidLayer(w, h, d);
+		}
+		else if (layerType == "tanh") {
+			layer = new TanhLayer(w, h, d);
 		}
 		else if (layerType == "relu") {
 			layer = new ReLULayer(w, h, d);
+		}
+		else if (layerType == "elu") {
+			double alpha;
+			f >> alpha;
+
+			layer = new ELULayer(w, h, d, alpha);
+		}
+		else if (layerType == "prelu") {
+			layer = new ParametricReLULayer(w, h, d, f);
+		}
+		else if (layerType == "swish") {
+			layer = new SwishLayer(w, h, d);
+		}
+		else if (layerType == "softmax") {
+			layer = new SoftmaxLayer(w, h, d);
 		}
 		else
 			throw std::runtime_error("Invalid layer type");

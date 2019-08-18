@@ -5,13 +5,13 @@
 #include <iomanip>
 #include <vector>
 
-#include "NetworkLayer.hpp"
+#include "../NetworkLayer.hpp"
 
-class SoftmaxLayer : public NetworkLayer {
+class SwishLayer : public NetworkLayer {
 	int total;
 
 public:
-	SoftmaxLayer(int width, int height, int deep);
+	SwishLayer(int width, int height, int deep);
 
 	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
@@ -22,13 +22,13 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-SoftmaxLayer::SoftmaxLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
+SwishLayer::SwishLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
 	total = width * height * deep;
 }
 
 // вывод конфигурации
-void SoftmaxLayer::PrintConfig() const {
-	std::cout << "| softmax        | ";
+void SwishLayer::PrintConfig() const {
+	std::cout << "| swish          | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << "           0 | ";
@@ -36,49 +36,39 @@ void SoftmaxLayer::PrintConfig() const {
 }
 
 // получение количества обучаемых параметров
-int SoftmaxLayer::GetTrainableParams() const {
+int SwishLayer::GetTrainableParams() const {
 	return 0;
 }
 
 // прямое распространение
-void SoftmaxLayer::Forward(const std::vector<Volume> &X) {
+void SwishLayer::Forward(const std::vector<Volume> &X) {
 	output = std::vector<Volume>(X.size(), Volume(outputSize));
+	dX = std::vector<Volume>(X.size(), Volume(inputSize));
 
-	#pragma omp parallel for
+	#pragma omp parallel for collapse(2)
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
-		double sum = 0;
-
 		for (int i = 0; i < total; i++) {
-			output[batchIndex][i] = exp(X[batchIndex][i]);
-			sum += output[batchIndex][i];
-		}
+			double sigmoid = 1.0 / (1 + exp(-X[batchIndex][i]));
+			double value = X[batchIndex][i] * sigmoid;
 
-		for (int i = 0; i < total; i++)
-			output[batchIndex][i] /= sum;
+			output[batchIndex][i] = value;
+			dX[batchIndex][i] = value + sigmoid * (1 - value);
+		}
 	}
 }
 
 // обратное распространение
-void SoftmaxLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
+void SwishLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	if (!calc_dX)
 		return;
 
-	dX = std::vector<Volume>(dout.size(), Volume(inputSize));
-
 	#pragma omp parallel for collapse(2)
-	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
-		for (int i = 0; i < total; i++) {
-			double sum = 0;
-
-			for (int j = 0; j < total; j++)
-				sum += dout[batchIndex][j] * output[batchIndex][i] * ((i == j) - output[batchIndex][j]);
-
-			dX[batchIndex][i] = sum;
-		}
-	}
+	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++)
+		for (int i = 0; i < total; i++)
+			dX[batchIndex][i] *= dout[batchIndex][i];
 }
 
 // сохранение слоя в файл
-void SoftmaxLayer::Save(std::ofstream &f) const {
-	f << "softmax " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+void SwishLayer::Save(std::ofstream &f) const {
+	f << "swish " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
 }

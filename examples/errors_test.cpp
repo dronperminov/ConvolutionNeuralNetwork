@@ -19,7 +19,7 @@ int main() {
 	int trainCount = 60000;
 	int testCount = 10000;
 
-	Network network("../models/mnist_99.49.txt");
+	Network network("../models/mnist_99.52.txt");
 
 	network.PrintConfig(); // выводим конфигурацию сети
 
