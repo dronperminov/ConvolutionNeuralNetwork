@@ -7,7 +7,7 @@
 using namespace std;
 
 void PrintLine(int maxEpochs) {
-	cout << "+----------------------------+";
+	cout << "+----------------------+";
 	for (int i = 0; i < maxEpochs; i++)
 		cout << "-----------------------+";
 	cout << endl;
@@ -16,7 +16,7 @@ void PrintLine(int maxEpochs) {
 void PrintHeader(int maxEpochs) {
 	PrintLine(maxEpochs);
 
-	cout << "|         Algorithm          |";
+	cout << "|      Algorithm       |";
 	for (int i = 0; i < maxEpochs; i++)
 		cout << "        Epoch " << (i + 1) << "        |";
 	cout << endl;
@@ -44,7 +44,7 @@ int main() {
 	vector<Network> networks;
 	vector<Optimizer> optimizers;
 	vector<string> names;
-	vector<string> activations = { "relu", "prelu", "elu", "swish", "sigmoid", "tanh" };
+	vector<string> activations = { "relu", "prelu", "elu", "swish", "sigmoid", "tanh", "logsigmoid", "softsign", "softplus" };
 
 	names.push_back("SGD");
 	optimizers.push_back(Optimizer::SGD(learningRate));
@@ -112,12 +112,12 @@ int main() {
 			std::vector<double> trainAcc;
 			std::vector<double> testAcc;
 
+			srand(1);
+
 			for (int k = 0; k < maxEpochs; k++) {
 				optimizers[i].SetEpoch(k + 1);
 
 				int index = i * activations.size() + j;
-
-				srand(i);
 
 				double error = networks[index].Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizers[i], lossType); // обучаем в течение одной эпохи
 				double test_acc = loader.Test(networks[index], test, "", 10000); // проверяем точность на тестовой выборке
@@ -128,7 +128,7 @@ int main() {
 				testAcc.push_back(test_acc);
 			}
 
-			cout << "| " << setfill(' ') << left << setw(26) << (names[i] + ", " + activations[j]) << " |";
+			cout << "| " << setfill(' ') << left << setw(20) << (names[i] + ", " + activations[j]) << " |";
 
 			for (int k = 0; k < maxEpochs; k++) {
 				cout.precision(5);
@@ -140,8 +140,6 @@ int main() {
 			cout << endl;
 		}
 
-		cout << endl;
+		PrintLine(maxEpochs);
 	}
-
-	PrintLine(maxEpochs);
 }

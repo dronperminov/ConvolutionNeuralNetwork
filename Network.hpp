@@ -16,11 +16,14 @@
 #include "Layers/BatchNormalization2DLayer.hpp"
 
 #include "Layers/Activations/SigmoidLayer.hpp"
+#include "Layers/Activations/LogSigmoidLayer.hpp"
 #include "Layers/Activations/TanhLayer.hpp"
 #include "Layers/Activations/ReLULayer.hpp"
 #include "Layers/Activations/ELULayer.hpp"
 #include "Layers/Activations/ParametricReLULayer.hpp"
 #include "Layers/Activations/SwishLayer.hpp"
+#include "Layers/Activations/SoftsignLayer.hpp"
+#include "Layers/Activations/SoftplusLayer.hpp"
 #include "Layers/Activations/SoftmaxLayer.hpp"
 
 #include "Entities/ArgParser.hpp"
@@ -42,6 +45,8 @@ class Network {
 	std::vector<Volume>& Forward(const std::vector<Volume> &input);
 	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize);
 	void SetBatchSize(int batchSize); // установка размера батча
+
+	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer); // обучение батча
 
 public:
 	Network(int width, int height, int deep);
@@ -154,8 +159,17 @@ void Network::AddLayer(const std::string& layerConf) {
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size.width, size.height, size.deep);
 	}
+	else if (parser["softsign"]) {
+		layer = new SoftsignLayer(size.width, size.height, size.deep);
+	}
+	else if (parser["softplus"]) {
+		layer = new SoftplusLayer(size.width, size.height, size.deep);
+	}
 	else if (parser["sigmoid"]) {
 		layer = new SigmoidLayer(size.width, size.height, size.deep);
+	}
+	else if (parser["logsigmoid"]) {
+		layer = new LogSigmoidLayer(size.width, size.height, size.deep);
 	}
 	else if (parser["tanh"]) {
 		layer = new TanhLayer(size.width, size.height, size.deep);
@@ -226,11 +240,40 @@ Volume& Network::GetOutput(const Volume& input) {
 	return layers[layers.size() - 1]->GetOutput()[0];
 }
 
+// обучение батча
+double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer) {
+	size_t size = inputBatch.size();
+	size_t last = layers.size() - 1;
+
+	std::vector<Volume> output = Forward(inputBatch); // получаем выход сети
+	std::vector<Volume> deltas(size, Volume(outputSize)); // создаём дельты
+
+	double loss = E.CalculateLoss(output, outputBatch, deltas); // расчитываем ошибку
+
+	// распространям ошибку по слоям
+	if (last == 0) {
+		layers[last]->Backward(deltas, inputBatch, true);
+	}
+	else {
+		layers[last]->Backward(deltas, layers[last - 1]->GetOutput(), true);
+
+		for (size_t i = last - 1; i > 0; i--)
+			layers[i]->Backward(layers[i + 1]->GetDeltas(), layers[i - 1]->GetOutput(), true);
+
+		layers[0]->Backward(layers[1]->GetDeltas(), inputBatch, false);
+	}
+
+	// обновляем высовые кожффициенты слоёв
+	for (size_t i = 0; i < layers.size(); i++)
+		layers[i]->UpdateWeights(optimizer);
+
+	return loss; // возвращаем ошибку
+}
+
 // обучение сети
 double Network::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType) {
-	LossFunction E(lossType);
+	LossFunction E(lossType); // создаём функцию ошибки
 	double loss = 0;
-	int last = layers.size() - 1;
 
 	for (size_t epoch = 1; epoch <= epochs; epoch++) {
 		InitBatches(inputData, outputData, batchSize);
@@ -240,8 +283,8 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 			layers[i]->ResetCache();
 
 		TimePoint t0 = Time::now();
-		int passed = 0;
-		loss = 0;
+		int passed = 0; // количество просмотренных примеров
+		loss = 0; // ошибка
 
 		for (size_t batch = 0; batch < inputBatches.size(); batch++) {
 			size_t size = inputBatches[batch].size();
@@ -249,35 +292,17 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 			if (batch == inputBatches.size() - 1)
 				SetBatchSize(size);
 
-			std::vector<Volume> output = Forward(inputBatches[batch]);
-			std::vector<Volume> deltas(size, Volume(outputSize));
+			loss += TrainBatch(inputBatches[batch], outputBatches[batch], E, optimizer); // обучаем на очередном батче
+			passed += size; // увеличиваем счётчик просмотренных примеров
 
-			loss += E.CalculateLoss(output, outputBatches[batch], deltas);
-
-			if (last == 0) {
-				layers[last]->Backward(deltas, inputBatches[batch], true);
-			}
-			else {
-				layers[last]->Backward(deltas, layers[last - 1]->GetOutput(), true);
-
-				for (size_t i = last - 1; i > 0; i--)
-					layers[i]->Backward(layers[i + 1]->GetDeltas(), layers[i - 1]->GetOutput(), true);
-
-				layers[0]->Backward(layers[1]->GetDeltas(), inputBatches[batch], false);
-			}
-
-			for (size_t i = 0; i < layers.size(); i++)
-				layers[i]->UpdateWeights(optimizer);
-
-			passed += size;
-
+			// выводим промежуточную информацию
 			ms d = std::chrono::duration_cast<ms>(Time::now() - t0);
 			double dt = (double) d.count() / passed;
 			double t = (inputData.size() - passed) * dt;
 			std::cout << passed << "/" << inputData.size() << ", loss: " << loss / passed << "left: " << TimeSpan(t) << ", total time: " << TimeSpan(dt * inputData.size()) << "\r";
 		}
 
-		loss /= inputData.size();
+		loss /= inputData.size(); // находим среднюю ошибку
 	}
 
 	return loss;
@@ -371,6 +396,9 @@ void Network::Load(const std::string &path, bool verbose) {
 		else if (layerType == "sigmoid") {
 			layer = new SigmoidLayer(w, h, d);
 		}
+		else if (layerType == "logsigmoid") {
+			layer = new LogSigmoidLayer(w, h, d);
+		}
 		else if (layerType == "tanh") {
 			layer = new TanhLayer(w, h, d);
 		}
@@ -388,6 +416,12 @@ void Network::Load(const std::string &path, bool verbose) {
 		}
 		else if (layerType == "swish") {
 			layer = new SwishLayer(w, h, d);
+		}
+		else if (layerType == "softsign") {
+			layer = new SoftsignLayer(w, h, d);
+		}
+		else if (layerType == "softplus") {
+			layer = new SoftplusLayer(w, h, d);
 		}
 		else if (layerType == "softmax") {
 			layer = new SoftmaxLayer(w, h, d);
@@ -427,17 +461,17 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 			double weight = layers[i]->GetParam(index);
 			double eps = 1e-6;
 
-			std::vector<Volume> deltas(batchSize, Volume(outputSize));
 
 			layers[i]->SetParam(index, weight + eps);
-			double E1 = E.CalculateLoss(Forward(inputData), outputData, deltas);
+			double E1 = E.CalculateLoss(Forward(inputData), outputData);
 
 			layers[i]->SetParam(index, weight - eps);
-			double E2 = E.CalculateLoss(Forward(inputData), outputData, deltas);
+			double E2 = E.CalculateLoss(Forward(inputData), outputData);
 
 			layers[i]->SetParam(index, weight);
 			layers[i]->ZeroGradient(index);
 
+			std::vector<Volume> deltas(batchSize, Volume(outputSize));
 			E.CalculateLoss(Forward(inputData), outputData, deltas);
 
 			if (last == 0) {
