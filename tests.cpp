@@ -342,6 +342,9 @@ void GradientCheckingTest() {
 	network.GradientChecking(inputs, outputs, LossType::BinaryCrossEntropy);
 	network.GradientChecking(inputs, outputs, LossType::CrossEntropy);
 	network.GradientChecking(inputs, outputs, LossType::MSE);
+	network.GradientChecking(inputs, outputs, LossType::MAE);
+	network.GradientChecking(inputs, outputs, LossType::Exp);
+	network.GradientChecking(inputs, outputs, LossType::Logcosh);
 }
 
 int main() {

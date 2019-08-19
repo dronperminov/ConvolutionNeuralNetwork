@@ -18,6 +18,9 @@ activations:
 compares:
 	$(COMPILER) $(FLAGS) examples/compare_test.cpp -o examples/compares
 
+losses:
+	$(COMPILER) $(FLAGS) examples/losses_test.cpp -o examples/losses
+
 errors:
 	$(COMPILER) $(FLAGS) examples/errors_test.cpp -o examples/errors
 

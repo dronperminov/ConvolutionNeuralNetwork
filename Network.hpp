@@ -45,6 +45,7 @@ class Network {
 	std::vector<Volume>& Forward(const std::vector<Volume> &input);
 	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize);
 	void SetBatchSize(int batchSize); // установка размера батча
+	void ResetCache(); // сброс промежуточных данных
 
 	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer); // обучение батча
 
@@ -58,6 +59,7 @@ public:
 	Volume& GetOutput(const Volume& input); // получение выхода сети
 	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType); // обучение сети
 	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType); // получение ошибки на заданной выборке без изменения весовых коэффициентов
+	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType); // поиск оптимальной скорости обучения
 
 	void Save(const std::string &path, bool verbose = true); // сохранение сети в файл
 	void Load(const std::string &path, bool verbose = true); // загрузка сети из файла
@@ -121,6 +123,12 @@ void Network::InitBatches(const std::vector<Volume> &inputData, const std::vecto
 void Network::SetBatchSize(int batchSize) {
 	for (int i = 0; i < layers.size(); i++)
 		layers[i]->SetBatchSize(batchSize);
+}
+
+ // сброс промежуточных данных
+void Network::ResetCache() {
+	for (size_t i = 0; i < layers.size(); i++)
+		layers[i]->ResetCache();
 }
 
 // добавление слоя по текстовому описанию
@@ -278,9 +286,7 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 	for (size_t epoch = 1; epoch <= epochs; epoch++) {
 		InitBatches(inputData, outputData, batchSize);
 		SetBatchSize(batchSize);
-
-		for (size_t i = 0; i < layers.size(); i++)
-			layers[i]->ResetCache();
+		ResetCache();
 
 		TimePoint t0 = Time::now();
 		int passed = 0; // количество просмотренных примеров
@@ -319,6 +325,55 @@ double Network::GetError(const std::vector<Volume> &inputData, const std::vector
 		loss += E.CalculateLoss(GetOutput(inputData[index]), outputData[index]);
 
 	return loss / total; // возвращаем среднюю ошибку
+}
+
+// поиск оптимальной скорости обучения
+void Network::LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType) {
+	int batches = inputData.size() / batchSize; // количество батчей
+	double scale = pow(maxLR / minLR, 1.0 / batches); // шаг изменения скорости обучения
+
+	LossFunction E(lossType); // создаём функцию ошибки
+	std::ofstream f(path);
+
+	f << "learning rate;total loss;batch loss;smoothed total loss;smoothed loss" << std::endl;
+
+	InitBatches(inputData, outputData, batchSize); // распределяем данные по батчам
+	SetBatchSize(batchSize); // задаём размер батча
+	ResetCache(); // сбрасываем промежуточные данные
+
+	double learningRate = minLR; // текущая скорость обучения
+	double loss = 0; // ошибка
+	double totalLoss = 0; // общая ошибка
+
+	double smoothedLoss = 0;
+	double smoothedTotalLoss = 0;
+	double beta = 0.9; // коэффициент сглаживания
+
+	int passed = 0; // количество просмотренных примеров
+
+	for (size_t batch = 0; batch < inputBatches.size(); batch++) {
+		size_t size = inputBatches[batch].size();
+
+		if (batch == inputBatches.size() - 1)
+			SetBatchSize(size);
+
+		optimizer.SetLearningRate(learningRate);
+
+		loss = TrainBatch(inputBatches[batch], outputBatches[batch], E, optimizer); // обучаем на очередном батче
+		totalLoss += loss;
+		passed += size; // увеличиваем счётчик просмотренных примеров
+
+		smoothedTotalLoss = smoothedTotalLoss * beta + (1 - beta) * (loss / passed); // находим сглаженное значение ошибки
+		smoothedLoss = smoothedLoss * beta + (1 - beta) * (loss / size); // находим сглаженное значение ошибки
+
+		f << learningRate << ";" << totalLoss / passed << ";" << loss / size << ";" << smoothedTotalLoss << ";" << smoothedLoss << std::endl;
+
+		learningRate *= scale; // изменяем скорость обучения
+
+		std::cout << passed << "/" << inputData.size() << "\r";
+	}
+
+	f.close();
 }
 
 // сохранение сети в файл
@@ -387,7 +442,7 @@ void Network::Load(const std::string &path, bool verbose) {
 
 			layer = new BatchNormalizationLayer(w, h, d, momentum, f);
 		}
-		else if (layerType == "batchnormalization2d") {
+		else if (layerType == "batchnormalization2D") {
 			double momentum;
 			f >> momentum;
 
@@ -427,7 +482,7 @@ void Network::Load(const std::string &path, bool verbose) {
 			layer = new SoftmaxLayer(w, h, d);
 		}
 		else
-			throw std::runtime_error("Invalid layer type");
+			throw std::runtime_error("Invalid layer type '" + layerType + "'");
 
 		layers.push_back(layer);
 	}

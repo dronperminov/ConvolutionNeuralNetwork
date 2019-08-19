@@ -3,9 +3,12 @@
 #include "Volume.hpp"
 
 enum class LossType {
-	MSE, // среднеквадратичное отклонение
+	MSE, // средняя квадратическая ошибка
+	MAE, // средняя абсолютная ошибка
 	CrossEntropy, // перекрёстная этнропия
 	BinaryCrossEntropy, // бинарная перекрёстная этнропия
+	Logcosh, // логарифм гиперболического косинуса
+	Exp // эскпонециальная ошибка
 };
 
 class LossFunction {
@@ -38,10 +41,16 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t, Volume &del
 			loss += e*e;
 		}
 	}
+	else if (type == LossType::MAE) {
+		for (int i = 0; i < total; i++) {
+			deltas[i] = y[i] > t[i] ? 1 : -1;
+			loss += fabs(y[i] - t[i]);
+		}
+	}
 	else if (type == LossType::CrossEntropy) {
 		for (int i = 0; i < total; i++) {
 			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
-			double ti = std::max(1e-7, std::min(1 - 1e-7, t[i]));
+			double ti = t[i];
 
 			deltas[i] = -ti / yi;
 			loss -= ti * log(yi);
@@ -50,10 +59,22 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t, Volume &del
 	else if (type == LossType::BinaryCrossEntropy) {
 		for (int i = 0; i < total; i++) {
 			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
-			double ti = std::max(1e-7, std::min(1 - 1e-7, t[i]));
+			double ti = t[i];
 
 			deltas[i] = (yi - ti) / (yi * (1 - yi));
 			loss -= ti * log(yi) + (1 - ti) * log(1 - yi);;
+		}
+	}
+	else if (type == LossType::Logcosh) {
+		for (int i = 0; i < total; i++) {
+			deltas[i] = tanh(y[i] - t[i]);
+			loss += log(cosh(y[i] - t[i]));
+		}
+	}
+	else if (type == LossType::Exp) {
+		for (int i = 0; i < total; i++) {
+			deltas[i] = exp(y[i] - t[i]);
+			loss += exp(y[i] - t[i]);
 		}
 	}
 
@@ -72,10 +93,15 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t) const {
 			loss += e*e;
 		}
 	}
+	else if (type == LossType::MAE) {
+		for (int i = 0; i < total; i++) {
+			loss += fabs(y[i] - t[i]);
+		}
+	}
 	else if (type == LossType::CrossEntropy) {
 		for (int i = 0; i < total; i++) {
 			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
-			double ti = std::max(1e-7, std::min(1 - 1e-7, t[i]));
+			double ti = t[i];
 
 			loss -= ti * log(yi);
 		}
@@ -83,9 +109,19 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t) const {
 	else if (type == LossType::BinaryCrossEntropy) {
 		for (int i = 0; i < total; i++) {
 			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
-			double ti = std::max(1e-7, std::min(1 - 1e-7, t[i]));
+			double ti = t[i];
 
 			loss -= ti * log(yi) + (1 - ti) * log(1 - yi);;
+		}
+	}
+	else if (type == LossType::Logcosh) {
+		for (int i = 0; i < total; i++) {
+			loss += log(cosh(y[i] - t[i]));
+		}
+	}
+	else if (type == LossType::Exp) {
+		for (int i = 0; i < total; i++) {
+			loss += exp(y[i] - t[i]);
 		}
 	}
 
