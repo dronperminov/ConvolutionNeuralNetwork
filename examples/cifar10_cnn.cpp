@@ -58,12 +58,11 @@ int main() {
 		cout << (i + 1) << ":" << endl;
 
 		optimizer.SetEpoch(i + 1);
+		
 		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy); // обучаем в течение одной эпохи
-
+		cout << "loss: " << loss << endl;
 
 		double testAcc = loader.Test(network, test, "", 10000); // проверяем точность на тестовой выборке
-
-		cout << "loss: " << loss << endl;
 		cout << "test accuracy: " << testAcc << endl;
 
 		// если тестовая точность стала выше максимальной

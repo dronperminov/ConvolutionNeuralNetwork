@@ -12,6 +12,12 @@ cifar10:
 optimizers:
 	$(COMPILER) $(FLAGS) examples/optimizers_test.cpp -o examples/optimizers
 
+activations:
+	$(COMPILER) $(FLAGS) examples/activations_test.cpp -o examples/activations
+
+compares:
+	$(COMPILER) $(FLAGS) examples/compare_test.cpp -o examples/compares
+
 errors:
 	$(COMPILER) $(FLAGS) examples/errors_test.cpp -o examples/errors
 
