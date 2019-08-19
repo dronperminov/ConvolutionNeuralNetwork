@@ -13,6 +13,7 @@
 
 #include "Layers/DropoutLayer.hpp"
 #include "Layers/BatchNormalizationLayer.hpp"
+#include "Layers/BatchNormalization2DLayer.hpp"
 
 #include "Layers/Activations/SigmoidLayer.hpp"
 #include "Layers/Activations/TanhLayer.hpp"
@@ -40,6 +41,7 @@ class Network {
 
 	std::vector<Volume>& Forward(const std::vector<Volume> &input);
 	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize);
+	void SetBatchSize(int batchSize); // установка размера батча
 
 public:
 	Network(int width, int height, int deep);
@@ -110,6 +112,12 @@ void Network::InitBatches(const std::vector<Volume> &inputData, const std::vecto
 	}
 }
 
+// установка размера батча
+void Network::SetBatchSize(int batchSize) {
+	for (int i = 0; i < layers.size(); i++)
+		layers[i]->SetBatchSize(batchSize);
+}
+
 // добавление слоя по текстовому описанию
 void Network::AddLayer(const std::string& layerConf) {
 	VolumeSize size = layers.size() == 0 ? inputSize : layers[layers.size() - 1]->GetOutputSize();
@@ -176,6 +184,11 @@ void Network::AddLayer(const std::string& layerConf) {
 
 		layer = new BatchNormalizationLayer(size.width, size.height, size.deep, std::stod(momentum));
 	}
+	else if (parser["batchnormalization2D"]) {
+		std::string momentum = parser.Get("momentum", "0.9");
+
+		layer = new BatchNormalization2DLayer(size.width, size.height, size.deep, std::stod(momentum));
+	}
 	else {
 		throw std::runtime_error("Invalid layer name '" + layerConf + "'");
 	}
@@ -204,6 +217,7 @@ void Network::PrintConfig() const {
 
 // получение выхода сети
 Volume& Network::GetOutput(const Volume& input) {
+	SetBatchSize(1);
 	layers[0]->ForwardOutput({ input });
 
 	for (size_t i = 1; i < layers.size(); i++)
@@ -220,6 +234,7 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 
 	for (size_t epoch = 1; epoch <= epochs; epoch++) {
 		InitBatches(inputData, outputData, batchSize);
+		SetBatchSize(batchSize);
 
 		for (size_t i = 0; i < layers.size(); i++)
 			layers[i]->ResetCache();
@@ -230,6 +245,9 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 
 		for (size_t batch = 0; batch < inputBatches.size(); batch++) {
 			size_t size = inputBatches[batch].size();
+
+			if (batch == inputBatches.size() - 1)
+				SetBatchSize(size);
 
 			std::vector<Volume> output = Forward(inputBatches[batch]);
 			std::vector<Volume> deltas(size, Volume(outputSize));
@@ -344,6 +362,12 @@ void Network::Load(const std::string &path, bool verbose) {
 
 			layer = new BatchNormalizationLayer(w, h, d, momentum, f);
 		}
+		else if (layerType == "batchnormalization2d") {
+			double momentum;
+			f >> momentum;
+
+			layer = new BatchNormalization2DLayer(w, h, d, momentum, f);
+		}
 		else if (layerType == "sigmoid") {
 			layer = new SigmoidLayer(w, h, d);
 		}
@@ -389,6 +413,8 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 	size_t last = layers.size() - 1;
 	size_t batchSize = inputData.size();
 
+	SetBatchSize(batchSize);
+
 	for (size_t i = 0; i < layers.size(); i++) {
 		int trainableParams = layers[i]->GetTrainableParams();
 
@@ -430,7 +456,7 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 			double num_grad = (E1 - E2) / (eps * 2);
 
 			if (fabs(grad - num_grad) > 1e-7) {
-				std::cout << fabs(grad - num_grad) << "\n";
+				std::cout << "grad: " << grad << ", num_grad: " << num_grad << ", |grad - num_grad|: " << fabs(grad - num_grad) << std::endl;
 				throw std::runtime_error("GradientChecking failed at layer " + std::to_string(i + 1));
 			}
 		}

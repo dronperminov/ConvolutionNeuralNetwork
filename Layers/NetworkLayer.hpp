@@ -32,6 +32,7 @@ public:
 	
 	virtual void ResetCache() {}
 	virtual void Save(std::ofstream &f) const = 0; // сохранение слоя в файл
+	virtual void SetBatchSize(int batchSize); // установка размера батча
 
 	virtual void SetParam(int index, double weight) { throw std::runtime_error("Layer has no trainable parameters"); } // установка веса по индексу
 	virtual double GetParam(int index) const { throw std::runtime_error("Layer has no trainable parameters"); } // получение веса по индексу
@@ -60,4 +61,10 @@ std::vector<Volume>& NetworkLayer::GetOutput() {
 
 std::vector<Volume>& NetworkLayer::GetDeltas() {
 	return dX;
+}
+
+// установка размера батча
+void NetworkLayer::SetBatchSize(int batchSize) {
+	output = std::vector<Volume>(batchSize, Volume(outputSize));
+	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }

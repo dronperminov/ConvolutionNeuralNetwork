@@ -55,6 +55,7 @@ public:
 
 	void ResetCache(); // сброс параметров
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
+	void SetBatchSize(int batchSize); // установка размера батча
 
 	void SetWeight(int i, int j, double weight);
 	void SetBias(int i, double bias);
@@ -212,9 +213,6 @@ int FullyConnectedLayer::GetTrainableParams() const {
 
 // прямое распространение
 void FullyConnectedLayer::Forward(const std::vector<Volume> &X) {
-	output = std::vector<Volume>(X.size(), Volume(outputSize));
-	df = std::vector<Volume>(X.size(), Volume(outputSize));
-
 	#pragma omp parallel for collapse(2)
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
 		for (int i = 0; i < outputs; i++) {
@@ -231,8 +229,6 @@ void FullyConnectedLayer::Forward(const std::vector<Volume> &X) {
 // обратное распространение
 void FullyConnectedLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	if (calc_dX) {
-		dX = std::vector<Volume>(dout.size(), Volume(inputSize));
-
 		#pragma omp parallel for collapse(2)
 		for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
 			for (int j = 0; j < inputs; j++) {
@@ -296,6 +292,13 @@ void FullyConnectedLayer::Save(std::ofstream &f) const {
 
 		f << std::setprecision(15) << b[i] << std::endl;
 	}
+}
+
+// установка размера батча
+void FullyConnectedLayer::SetBatchSize(int batchSize) {
+	output = std::vector<Volume>(batchSize, Volume(outputSize));
+	df = std::vector<Volume>(batchSize, Volume(outputSize));
+	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }
 
 void FullyConnectedLayer::SetWeight(int i, int j, double weight) {

@@ -7,8 +7,8 @@
 
 #include "NetworkLayer.hpp"
 
-class BatchNormalizationLayer : public NetworkLayer {
-	int total;
+class BatchNormalization2DLayer : public NetworkLayer {
+	int wh;
 	double momentum;
 
 	Volume gamma;
@@ -30,8 +30,8 @@ class BatchNormalizationLayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	BatchNormalizationLayer(int width, int height, int deep, double momentum);
-	BatchNormalizationLayer(int width, int height, int deep, double momentum, std::ifstream &f);
+	BatchNormalization2DLayer(int width, int height, int deep, double momentum);
+	BatchNormalization2DLayer(int width, int height, int deep, double momentum, std::ifstream &f);
 
 	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
@@ -51,39 +51,38 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-BatchNormalizationLayer::BatchNormalizationLayer(int width, int height, int deep, double momentum) : NetworkLayer(width, height, deep, width, height, deep),
-	gamma(width, height, deep), dgamma(width, height, deep), beta(width, height, deep), dbeta(width, height, deep), 
-	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
+BatchNormalization2DLayer::BatchNormalization2DLayer(int width, int height, int deep, double momentum) : NetworkLayer(width, height, deep, width, height, deep),
+	gamma(1, 1, deep), dgamma(1, 1, deep), beta(1, 1, deep), dbeta(1, 1, deep), 
+	mu(1, 1, deep), var(1, 1, deep), running_mu(1, 1, deep), running_var(1, 1, deep) {
 
 	this->momentum = momentum;
-	total = width * height * deep;
+	wh = width * height;
 
 	InitParams();
 	InitWeights();
 }
 
-BatchNormalizationLayer::BatchNormalizationLayer(int width, int height, int deep, double momentum, std::ifstream &f) : NetworkLayer(width, height, deep, width, height, deep),
+BatchNormalization2DLayer::BatchNormalization2DLayer(int width, int height, int deep, double momentum, std::ifstream &f) : NetworkLayer(width, height, deep, width, height, deep),
 	gamma(width, height, deep), dgamma(width, height, deep), beta(width, height, deep), dbeta(width, height, deep), 
 	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
 
 	this->momentum = momentum;
-	total = width * height * deep;
 
 	InitParams();
 	LoadWeights(f);
 }
 
 // инициализация параметров для обучения
-void BatchNormalizationLayer::InitParams() {
+void BatchNormalization2DLayer::InitParams() {
 	for (int i = 0; i < OPTIMIZER_PARAMS_COUNT; i++) {
-		paramsgamma.push_back(Volume(outputSize));
-		paramsbeta.push_back(Volume(outputSize));
+		paramsgamma.push_back(Volume(1, 1, outputSize.deep));
+		paramsbeta.push_back(Volume(1, 1, outputSize.deep));
 	}
 }
 
 // инициализация весовых коэффициентов
-void BatchNormalizationLayer::InitWeights() {
-	for (int i = 0; i < total; i++) {
+void BatchNormalization2DLayer::InitWeights() {
+	for (int i = 0; i < outputSize.deep; i++) {
 		gamma[i] = 1;
 		beta[i] = 0;
 
@@ -93,23 +92,23 @@ void BatchNormalizationLayer::InitWeights() {
 }
 
 // считывание весовых коэффициентов из файла
-void BatchNormalizationLayer::LoadWeights(std::ifstream &f) {
-	for (int i = 0; i < total; i++)
+void BatchNormalization2DLayer::LoadWeights(std::ifstream &f) {
+	for (int i = 0; i < outputSize.deep; i++)
 		f >> gamma[i];
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f >> beta[i];
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f >> running_mu[i];
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f >> running_var[i];
 }
 
 // вывод конфигурации
-void BatchNormalizationLayer::PrintConfig() const {
-	std::cout << "| batch norm.    | ";
+void BatchNormalization2DLayer::PrintConfig() const {
+	std::cout << "| batch norm. 2D | ";
 	std::cout << std::setw(12) << inputSize << " | ";
 	std::cout << std::setw(13) << outputSize << " | ";
 	std::cout << std::setw(12) << GetTrainableParams() << " | ";
@@ -118,82 +117,102 @@ void BatchNormalizationLayer::PrintConfig() const {
 }
 
 // получение количество обучаемых параметров
-int BatchNormalizationLayer::GetTrainableParams() const {
-	return 2 * total;
+int BatchNormalization2DLayer::GetTrainableParams() const {
+	return 2 * outputSize.deep;
 }
 
 // прямое распространение
-void BatchNormalizationLayer::ForwardOutput(const std::vector<Volume> &X) {
-	#pragma omp parallel for collapse(2)
+void BatchNormalization2DLayer::ForwardOutput(const std::vector<Volume> &X) {
+	#pragma omp parallel for collapse(4)
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++)
-		for (int i = 0; i < total; i++)
-			output[batchIndex][i] = gamma[i] * (X[batchIndex][i] - running_mu[i]) / sqrt(running_var[i] + 1e-8) + beta[i];
+		for (int d = 0; d < outputSize.deep; d++)
+			for (int i = 0; i < outputSize.height; i++)
+				for (int j = 0; j < outputSize.width; j++)
+					output[batchIndex](d, i, j) = gamma[d] * (X[batchIndex](d, i, j) - running_mu[d]) / sqrt(running_var[d] + 1e-8) + beta[d];	
 }
 
 // прямое распространение
-void BatchNormalizationLayer::Forward(const std::vector<Volume> &X) {
+void BatchNormalization2DLayer::Forward(const std::vector<Volume> &X) {
 	#pragma omp parallel for
-	for (int i = 0; i < total; i++) {
+	for (int d = 0; d < outputSize.deep; d++) {
 		double sum = 0;
 
 		for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++)
-			sum += X[batchIndex][i];
+			for (int i = 0; i < outputSize.height; i++)
+				for (int j = 0; j < outputSize.width; j++)
+					sum += X[batchIndex](d, i, j);
 
-		mu[i] = sum / X.size();
+		mu[d] = sum / (X.size() * wh);
 		sum = 0;
 
 		for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++)
-			sum += pow(X[batchIndex][i] - mu[i], 2);
+			for (int i = 0; i < outputSize.height; i++)
+				for (int j = 0; j < outputSize.width; j++)
+					sum += pow(X[batchIndex](d, i, j) - mu[d], 2);
 
-		var[i] = sum / X.size();
+		var[d] = sum / (X.size() * wh);
 
 		for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
-			X_norm[batchIndex][i] = (X[batchIndex][i] - mu[i]) / sqrt(var[i] + 1e-8);
-			output[batchIndex][i] = gamma[i] * X_norm[batchIndex][i] + beta[i];
+			for (int i = 0; i < outputSize.height; i++) {
+				for (int j = 0; j < outputSize.width; j++) {
+					X_norm[batchIndex](d, i, j) = (X[batchIndex](d, i, j) - mu[d]) / sqrt(var[d] + 1e-8);
+					output[batchIndex](d, i, j) = gamma[d] * X_norm[batchIndex](d, i, j) + beta[d];
+				}
+			}
 		}
 
-		running_mu[i] = momentum * running_mu[i] + (1 - momentum) * mu[i];
-		running_var[i] = momentum * running_var[i] + (1 - momentum) * var[i];
+		running_mu[d] = momentum * running_mu[d] + (1 - momentum) * mu[d];
+		running_var[d] = momentum * running_var[d] + (1 - momentum) * var[d];
 	}
 }
 
 // обратное распространение
-void BatchNormalizationLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
+void BatchNormalization2DLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
-		for (int i = 0; i < total; i++) {
-			double delta = dout[batchIndex][i];
+		for (int d = 0; d < outputSize.deep; d++) {
+			for (int i = 0; i < outputSize.height; i++) {
+				for (int j = 0; j < outputSize.width; j++) {
+					double delta = dout[batchIndex](d, i, j);
 
-			dgamma[i] += delta * X_norm[batchIndex][i];
-			dbeta[i] += delta;
+					dgamma[d] += delta * X_norm[batchIndex](d, i, j);
+					dbeta[d] += delta;
+				}
+			}
 		}
 	}
 
 	if (calc_dX) {
 		size_t N = dout.size();
 
-		Volume d1(outputSize);
-		Volume d2(outputSize);
+		Volume d1(1, 1, outputSize.deep);
+		Volume d2(1, 1, outputSize.deep);
 
 		for (size_t batchIndex = 0; batchIndex < N; batchIndex++) {
-			for (int i = 0; i < total; i++) {
-				dX_norm[batchIndex][i] = dout[batchIndex][i] * gamma[i];
+			for (int d = 0; d < outputSize.deep; d++) {
+				for (int i = 0; i < outputSize.height; i++) {
+					for (int j = 0; j < outputSize.width; j++) {
+						dX_norm[batchIndex](d, i, j) = dout[batchIndex](d, i, j) * gamma[d];
 
-				d1[i] += dX_norm[batchIndex][i];
-				d2[i] += dX_norm[batchIndex][i] * X_norm[batchIndex][i];
+						d1[d] += dX_norm[batchIndex](d, i, j);
+						d2[d] += dX_norm[batchIndex](d, i, j) * X_norm[batchIndex](d, i, j);
+					}
+				}
 			}
 		}
 
-		#pragma omp parallel for collapse(2)
-		for (int i = 0; i < total; i++)
-			for (size_t batchIndex = 0; batchIndex < N; batchIndex++)
-				dX[batchIndex][i] = (dX_norm[batchIndex][i] - (d1[i] + X_norm[batchIndex][i] * d2[i]) / N) / (sqrt(var[i] + 1e-8));
+		#pragma omp parallel for collapse(4)
+		for (int d = 0; d < outputSize.deep; d++)
+				for (int i = 0; i < outputSize.height; i++)
+					for (int j = 0; j < outputSize.width; j++)
+						for (size_t batchIndex = 0; batchIndex < N; batchIndex++)
+							dX[batchIndex](d, i, j) = (dX_norm[batchIndex](d, i, j) - (d1[d] + X_norm[batchIndex](d, i, j) * d2[d]) / (N * wh)) / (sqrt(var[d] + 1e-8));
 	}
 }
 
 // обновление весовых коэффициентов
-void BatchNormalizationLayer::UpdateWeights(const Optimizer &optimizer) {
+void BatchNormalization2DLayer::UpdateWeights(const Optimizer &optimizer) {
 	#pragma omp parallel for
-	for (int i = 0; i < total; i++) {
+	for (int i = 0; i < outputSize.deep; i++) {
 		optimizer.Update(dbeta[i], paramsbeta[0][i], paramsbeta[1][i], paramsbeta[2][i], beta[i]);
 		optimizer.Update(dgamma[i], paramsgamma[0][i], paramsgamma[1][i], paramsgamma[2][i], gamma[i]);
 
@@ -203,8 +222,8 @@ void BatchNormalizationLayer::UpdateWeights(const Optimizer &optimizer) {
 }
 
 // сброс параметров
-void BatchNormalizationLayer::ResetCache() {
-	for (int i = 0; i < total; i++) {
+void BatchNormalization2DLayer::ResetCache() {
+	for (int i = 0; i < outputSize.deep; i++) {
 		running_mu[i] = 0;
 		running_var[i] = 0;
 
@@ -216,32 +235,32 @@ void BatchNormalizationLayer::ResetCache() {
 }
 
 // сохранение слоя в файл
-void BatchNormalizationLayer::Save(std::ofstream &f) const {
-	f << "batchnormalization " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << momentum << std::endl;
+void BatchNormalization2DLayer::Save(std::ofstream &f) const {
+	f << "batchnormalization2D " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << momentum << std::endl;
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f << std::setprecision(15) << gamma[i] << " ";
 
 	f << std::endl;
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f << std::setprecision(15) << beta[i] << " ";
 
 	f << std::endl;
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f << std::setprecision(15) << running_mu[i] << " ";
 
 	f << std::endl;
 
-	for (int i = 0; i < total; i++)
+	for (int i = 0; i < outputSize.deep; i++)
 		f << std::setprecision(15) << running_var[i] << " ";
 
 	f << std::endl;
 }
 
 // установка размера батча
-void BatchNormalizationLayer::SetBatchSize(int batchSize) {
+void BatchNormalization2DLayer::SetBatchSize(int batchSize) {
 	output = std::vector<Volume>(batchSize, Volume(outputSize));
 	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 
@@ -250,41 +269,41 @@ void BatchNormalizationLayer::SetBatchSize(int batchSize) {
 }
 
 // установка веса по индексу
-void BatchNormalizationLayer::SetParam(int index, double weight) {
-	if (index / total == 0) {
+void BatchNormalization2DLayer::SetParam(int index, double weight) {
+	if (index / outputSize.deep == 0) {
 		gamma[index] = weight;
 	}
 	else {
-		beta[index % total] = weight;
+		beta[index % outputSize.deep] = weight;
 	}
 }
 
 // получение веса по индексу
-double BatchNormalizationLayer::GetParam(int index) const {
-	if (index / total == 0) {
+double BatchNormalization2DLayer::GetParam(int index) const {
+	if (index / outputSize.deep == 0) {
 		return gamma[index];
 	}
 	else {
-		return beta[index % total];
+		return beta[index % outputSize.deep];
 	}
 }
 
 // получение градиента веса по индексу
-double BatchNormalizationLayer::GetGradient(int index) const {
-	if (index / total == 0) {
+double BatchNormalization2DLayer::GetGradient(int index) const {
+	if (index / outputSize.deep == 0) {
 		return dgamma[index];
 	}
 	else {
-		return dbeta[index % total];
+		return dbeta[index % outputSize.deep];
 	}
 }
 
 // обнуление градиента веса по индексу
-void BatchNormalizationLayer::ZeroGradient(int index) {
-	if (index / total == 0) {
+void BatchNormalization2DLayer::ZeroGradient(int index) {
+	if (index / outputSize.deep == 0) {
 		dgamma[index] = 0;
 	}
 	else {
-		dbeta[index % total] = 0;
+		dbeta[index % outputSize.deep] = 0;
 	}
 }

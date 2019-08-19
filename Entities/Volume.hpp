@@ -112,9 +112,9 @@ void Volume::FillRandom(GaussRandom& random, double dev, double mean) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Volume &volume) {
-	for (int i = 0; i < volume.size.height; i++) {
-		for (int j = 0; j < volume.size.width; j++) {
-			for (int d = 0; d < volume.size.deep; d++)
+	for (int d = 0; d < volume.size.deep; d++) {
+		for (int i = 0; i < volume.size.height; i++) {
+			for (int j = 0; j < volume.size.width; j++)
 				os << volume.values[i * volume.dw + j * volume.size.deep + d] << " ";
 			
 			os << std::endl;

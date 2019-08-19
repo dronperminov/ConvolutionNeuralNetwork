@@ -18,6 +18,8 @@ public:
 	double operator()(int i, int j) const; // индексация
 
 	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
+
+	friend std::ostream& operator<<(std::ostream& os, const Matrix &matrix);
 };
 
 // конструктор из заданных размеров
@@ -43,4 +45,15 @@ void Matrix::FillRandom(GaussRandom& random, double dev, double mean) {
 	for (int i = 0; i < n; i++)
 		for (int j = 0; j < m; j++)
 			values[i][j] = random.Next(dev, mean);
+}
+
+std::ostream& operator<<(std::ostream& os, const Matrix &matrix) {
+	for (int i = 0; i < matrix.n; i++) {
+		for (int j = 0; j < matrix.m; j++)
+			os << std::setw(5) << matrix.values[i][j] << " ";
+
+		os << std::endl;
+	}
+
+	return os;
 }

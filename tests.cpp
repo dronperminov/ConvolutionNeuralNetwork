@@ -13,7 +13,8 @@ using namespace std;
 void FullyConnectedLayerTest() {
 	cout << "Full connected tests: ";
 	FullyConnectedLayer layer(1, 1, 8, 4, "relu");
-	
+	layer.SetBatchSize(1);
+
 	double weights[4][8] = {
 		{ 1, 2, 3, 4, -1, -2, -3, -4 },
 		{ 1, 0, 0, 1, -1, 2, -3, 4 }, 
@@ -77,6 +78,7 @@ void FullyConnectedLayerTest() {
 void MaxPoolingLayerTest() {
 	cout << "Max pooling tests: ";
 	MaxPoolingLayer layer(4, 4, 1, 2);
+	layer.SetBatchSize(1);
 	Volume input(4, 4, 1);
 
 	input(0, 0, 0) = 1;
@@ -150,6 +152,7 @@ void MaxPoolingLayerTest() {
 void ConvLayerTest() {
 	cout << "Conv tests: ";
 	ConvLayer layer(5, 5, 3, 2, 3, 1, 2);
+	layer.SetBatchSize(1);
 	Volume input(5, 5, 3);
 
 	double x[75] = { 1, 2, 0, 1, 0, 2, 0, 0, 0, 1, 1, 2, 2, 0, 2, 2, 2, 2, 0, 1, 2, 0, 1, 0, 1, 1, 2, 2, 1, 2, 0, 2, 2, 0, 2, 1, 2, 2, 1, 1, 2, 2, 0, 1, 0, 2, 2, 1, 0, 0, 0, 2, 0, 1, 1, 2, 0, 2, 1, 1, 2, 0, 1, 2, 1, 0, 1, 0, 1, 2, 1, 0, 1, 2, 1 };
@@ -202,6 +205,7 @@ void ConvLayerTest() {
 	assert(output(1, 2, 2) == 3);
 
 	ConvLayer layer2(4, 4, 1, 1, 3, 0, 1);
+	layer2.SetBatchSize(1);
 	layer2.SetBias(0, 0);
 
 	layer2.SetWeight(0, 0, 0, 0, 1);
@@ -277,6 +281,7 @@ void DropoutTest() {
 		input[i] = 1;
 
 	DropoutLayer layer(1, 1, 10, 0.2);
+	layer.SetBatchSize(1);
 
 	for (int i = 0; i < 10; i++)
 		layer.Forward({input});

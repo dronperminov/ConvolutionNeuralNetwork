@@ -42,9 +42,6 @@ int SwishLayer::GetTrainableParams() const {
 
 // прямое распространение
 void SwishLayer::Forward(const std::vector<Volume> &X) {
-	output = std::vector<Volume>(X.size(), Volume(outputSize));
-	dX = std::vector<Volume>(X.size(), Volume(inputSize));
-
 	#pragma omp parallel for collapse(2)
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
 		for (int i = 0; i < total; i++) {

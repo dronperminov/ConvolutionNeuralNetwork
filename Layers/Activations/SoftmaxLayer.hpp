@@ -42,8 +42,6 @@ int SoftmaxLayer::GetTrainableParams() const {
 
 // прямое распространение
 void SoftmaxLayer::Forward(const std::vector<Volume> &X) {
-	output = std::vector<Volume>(X.size(), Volume(outputSize));
-
 	#pragma omp parallel for
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
 		double sum = 0;
@@ -62,8 +60,6 @@ void SoftmaxLayer::Forward(const std::vector<Volume> &X) {
 void SoftmaxLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	if (!calc_dX)
 		return;
-
-	dX = std::vector<Volume>(dout.size(), Volume(inputSize));
 
 	#pragma omp parallel for collapse(2)
 	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {

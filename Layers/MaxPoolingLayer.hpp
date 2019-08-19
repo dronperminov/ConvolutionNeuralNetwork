@@ -57,9 +57,6 @@ int MaxPoolingLayer::GetTrainableParams() const {
 
 // прямое распространение
 void MaxPoolingLayer::Forward(const std::vector<Volume> &X) {
-	output = std::vector<Volume>(X.size(), Volume(outputSize));
-	dX = std::vector<Volume>(X.size(), Volume(inputSize));
-
 	#pragma omp parallel for collapse(4)
 	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
 		for (int d = 0; d < inputSize.deep; d++) {
