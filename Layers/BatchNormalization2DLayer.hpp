@@ -67,6 +67,7 @@ BatchNormalization2DLayer::BatchNormalization2DLayer(int width, int height, int 
 	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
 
 	this->momentum = momentum;
+	wh = width * height;
 
 	InitParams();
 	LoadWeights(f);
