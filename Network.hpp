@@ -516,7 +516,6 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 			double weight = layers[i]->GetParam(index);
 			double eps = 1e-6;
 
-
 			layers[i]->SetParam(index, weight + eps);
 			double E1 = E.CalculateLoss(Forward(inputData), outputData);
 
