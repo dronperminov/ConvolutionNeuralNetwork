@@ -17,6 +17,7 @@ class FullyConnectedLayer : public NetworkLayer {
 		Tanh,
 		ReLU,
 		LeakyReLU,
+		ELU
 	};
 
 	int inputs;
@@ -125,8 +126,11 @@ FullyConnectedLayer::ActivationType FullyConnectedLayer::GetActivationType(const
 	if (type == "relu")
 		return ActivationType::ReLU;
 
-	if (type == "lrelu" || type == "leakyrelu")
+	if (type == "leakyrelu")
 		return ActivationType::LeakyReLU;
+
+	if (type == "elu")
+		return ActivationType::ELU;
 
 	if (type == "none" || type == "")
 		return ActivationType::None;
@@ -148,6 +152,9 @@ std::string FullyConnectedLayer::GetActivationType() const {
 	if (activationType == ActivationType::LeakyReLU)
 		return "leakyrelu";
 
+	if (activationType == ActivationType::ELU)
+		return "elu";
+
 	if (activationType == ActivationType::None)
 		return "none";
 
@@ -159,6 +166,16 @@ void FullyConnectedLayer::Activate(int batchIndex, int i, double value) {
 	if (activationType == ActivationType::None) {
 		output[batchIndex][i] = value;
 		df[batchIndex][i] = 1;
+	}
+	else if (activationType == ActivationType::Sigmoid) {
+		value = 1 / (1 + exp(-value));
+		output[batchIndex][i] = value;
+		df[batchIndex][i] = value * (1 - value);
+	}
+	else if (activationType == ActivationType::Tanh) {
+		value = tanh(value);
+		output[batchIndex][i] = value;
+		df[batchIndex][i] = 1 - value * value;
 	}
 	else if (activationType == ActivationType::ReLU) {
 		if (value > 0) {
@@ -180,15 +197,15 @@ void FullyConnectedLayer::Activate(int batchIndex, int i, double value) {
 			df[batchIndex][i] = 0.01;
 		}
 	}
-	else if (activationType == ActivationType::Sigmoid) {
-		value = 1 / (1 + exp(-value));
-		output[batchIndex][i] = value;
-		df[batchIndex][i] = value * (1 - value);
-	}
-	else if (activationType == ActivationType::Tanh) {
-		value = tanh(value);
-		output[batchIndex][i] = value;
-		df[batchIndex][i] = 1 - value * value;
+	else if (activationType == ActivationType::ELU) {
+		if (value > 0) {
+			output[batchIndex][i] = value;
+			df[batchIndex][i] = 1;
+		}
+		else {
+			output[batchIndex][i] = exp(value) - 1;
+			df[batchIndex][i] = exp(value);
+		}
 	}
 }
 
