@@ -11,9 +11,8 @@ class SoftplusLayer : public NetworkLayer {
 	int total;
 
 public:
-	SoftplusLayer(int width, int height, int deep);
+	SoftplusLayer(VolumeSize size);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -22,17 +21,11 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-SoftplusLayer::SoftplusLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
-	total = width * height * deep;
-}
+SoftplusLayer::SoftplusLayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void SoftplusLayer::PrintConfig() const {
-	std::cout << "| softplus       | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << std::endl;
+	name = "softplus";
+	info = "";
 }
 
 // получение количества обучаемых параметров
@@ -64,5 +57,5 @@ void SoftplusLayer::Backward(const std::vector<Volume> &dout, const std::vector<
 
 // сохранение слоя в файл
 void SoftplusLayer::Save(std::ofstream &f) const {
-	f << "softplus " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "softplus " << inputSize << std::endl;
 }

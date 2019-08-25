@@ -1,6 +1,9 @@
 #pragma once
 
+#include <iostream>
+#include <iomanip>
 #include <vector>
+
 #include "../Entities/Volume.hpp"
 #include "../Entities/Optimizers.hpp"
 
@@ -10,6 +13,9 @@ protected:
 
 	VolumeSize inputSize;
 	VolumeSize outputSize;
+
+	std::string name; // имя слоя
+	std::string info; // информация о слое
 
 	std::vector<Volume> output;
 	std::vector<Volume> dX;
@@ -22,7 +28,8 @@ public:
 	std::vector<Volume>& GetOutput();
 	std::vector<Volume>& GetDeltas();
 
-	virtual void PrintConfig() const = 0;
+	void PrintConfig() const;
+	
 	virtual int GetTrainableParams() const = 0; // получение количества обучаемых параметров
 
 	virtual void ForwardOutput(const std::vector<Volume> &X) { Forward(X); }; // прямое распространение
@@ -61,6 +68,14 @@ std::vector<Volume>& NetworkLayer::GetOutput() {
 
 std::vector<Volume>& NetworkLayer::GetDeltas() {
 	return dX;
+}
+
+void NetworkLayer::PrintConfig() const {
+	std::cout << "| " << std::left << std::setw(14) << name << " | ";
+	std::cout << std::right << std::setw(12) << inputSize.ToString() << " | ";
+	std::cout << std::setw(13) << outputSize.ToString() << " | ";
+	std::cout << std::setw(12) << GetTrainableParams() << " | ";
+	std::cout << info << std::endl; 
 }
 
 // установка размера батча

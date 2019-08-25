@@ -17,9 +17,8 @@ class DropoutLayer : public NetworkLayer {
 	std::binomial_distribution<int> distribution;
 
 public:
-	DropoutLayer(int width, int height, int deep, double p);
+	DropoutLayer(VolumeSize size, double p);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
@@ -29,20 +28,13 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-DropoutLayer::DropoutLayer(int width, int height, int deep, double p) : NetworkLayer(width, height, deep, width, height, deep), distribution(1, 1 - p) {
+DropoutLayer::DropoutLayer(VolumeSize size, double p) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), distribution(1, 1 - p) {
 	this->p = p;
 	this->q = 1 - p;
-	this->total = width * height * deep;
-}
+	this->total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void DropoutLayer::PrintConfig() const {
-	std::cout << "| dropout        | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << "p:" << p;
-	std::cout << std::endl;
+	name = "dropout";
+	info = "p: " + std::to_string(p);
 }
 
 // получение количество обучаемых параметров
@@ -90,5 +82,5 @@ void DropoutLayer::Backward(const std::vector<Volume> &dout, const std::vector<V
 
 // сохранение слоя в файл
 void DropoutLayer::Save(std::ofstream &f) const {
-	f << "dropout " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << p << std::endl;
+	f << "dropout " << inputSize << " " << p << std::endl;
 }

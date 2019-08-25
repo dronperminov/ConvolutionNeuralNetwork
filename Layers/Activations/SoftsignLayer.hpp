@@ -11,9 +11,8 @@ class SoftsignLayer : public NetworkLayer {
 	int total;
 
 public:
-	SoftsignLayer(int width, int height, int deep);
+	SoftsignLayer(VolumeSize size);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -22,17 +21,11 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-SoftsignLayer::SoftsignLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
-	total = width * height * deep;
-}
+SoftsignLayer::SoftsignLayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void SoftsignLayer::PrintConfig() const {
-	std::cout << "| softsign       | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << std::endl;
+	name = "softsign";
+	info = "";
 }
 
 // получение количества обучаемых параметров
@@ -64,5 +57,5 @@ void SoftsignLayer::Backward(const std::vector<Volume> &dout, const std::vector<
 
 // сохранение слоя в файл
 void SoftsignLayer::Save(std::ofstream &f) const {
-	f << "softsign " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "softsign " << inputSize << std::endl;
 }

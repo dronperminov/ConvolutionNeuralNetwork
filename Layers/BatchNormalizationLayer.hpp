@@ -30,10 +30,9 @@ class BatchNormalizationLayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	BatchNormalizationLayer(int width, int height, int deep, double momentum);
-	BatchNormalizationLayer(int width, int height, int deep, double momentum, std::ifstream &f);
+	BatchNormalizationLayer(VolumeSize size, double momentum);
+	BatchNormalizationLayer(VolumeSize size, double momentum, std::ifstream &f);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
@@ -51,24 +50,30 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-BatchNormalizationLayer::BatchNormalizationLayer(int width, int height, int deep, double momentum) : NetworkLayer(width, height, deep, width, height, deep),
-	gamma(width, height, deep), dgamma(width, height, deep), beta(width, height, deep), dbeta(width, height, deep), 
-	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
+BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
+	gamma(size.width, size.height, size.deep), dgamma(size.width, size.height, size.deep), beta(size.width, size.height, size.deep), dbeta(size.width, size.height, size.deep), 
+	mu(size.width, size.height, size.deep), var(size.width, size.height, size.deep), running_mu(size.width, size.height, size.deep), running_var(size.width, size.height, size.deep) {
 
 	this->momentum = momentum;
-	total = width * height * deep;
+	total = size.width * size.height * size.deep;
+
+	name = "batch norm";
+	info = "moment: " + std::to_string(momentum);
 
 	InitParams();
 	InitWeights();
 }
 
-BatchNormalizationLayer::BatchNormalizationLayer(int width, int height, int deep, double momentum, std::ifstream &f) : NetworkLayer(width, height, deep, width, height, deep),
-	gamma(width, height, deep), dgamma(width, height, deep), beta(width, height, deep), dbeta(width, height, deep), 
-	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
+BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
+	gamma(size.width, size.height, size.deep), dgamma(size.width, size.height, size.deep), beta(size.width, size.height, size.deep), dbeta(size.width, size.height, size.deep), 
+	mu(size.width, size.height, size.deep), var(size.width, size.height, size.deep), running_mu(size.width, size.height, size.deep), running_var(size.width, size.height, size.deep) {
 
 	this->momentum = momentum;
-	total = width * height * deep;
+	total = size.width * size.height * size.deep;
 
+	name = "batch norm";
+	info = "moment: " + std::to_string(momentum);
+	
 	InitParams();
 	LoadWeights(f);
 }
@@ -105,16 +110,6 @@ void BatchNormalizationLayer::LoadWeights(std::ifstream &f) {
 
 	for (int i = 0; i < total; i++)
 		f >> running_var[i];
-}
-
-// вывод конфигурации
-void BatchNormalizationLayer::PrintConfig() const {
-	std::cout << "| batch norm.    | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << GetTrainableParams() << " | ";
-	std::cout << "moment: " << momentum;
-	std::cout << std::endl;
 }
 
 // получение количество обучаемых параметров
@@ -217,7 +212,7 @@ void BatchNormalizationLayer::ResetCache() {
 
 // сохранение слоя в файл
 void BatchNormalizationLayer::Save(std::ofstream &f) const {
-	f << "batchnormalization " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << momentum << std::endl;
+	f << "batchnormalization " << inputSize << " " << momentum << std::endl;
 
 	for (int i = 0; i < total; i++)
 		f << std::setprecision(15) << gamma[i] << " ";

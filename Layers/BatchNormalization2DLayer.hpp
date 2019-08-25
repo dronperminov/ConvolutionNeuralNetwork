@@ -30,10 +30,9 @@ class BatchNormalization2DLayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	BatchNormalization2DLayer(int width, int height, int deep, double momentum);
-	BatchNormalization2DLayer(int width, int height, int deep, double momentum, std::ifstream &f);
+	BatchNormalization2DLayer(VolumeSize size, double momentum);
+	BatchNormalization2DLayer(VolumeSize size, double momentum, std::ifstream &f);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
@@ -51,23 +50,29 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-BatchNormalization2DLayer::BatchNormalization2DLayer(int width, int height, int deep, double momentum) : NetworkLayer(width, height, deep, width, height, deep),
-	gamma(1, 1, deep), dgamma(1, 1, deep), beta(1, 1, deep), dbeta(1, 1, deep), 
-	mu(1, 1, deep), var(1, 1, deep), running_mu(1, 1, deep), running_var(1, 1, deep) {
+BatchNormalization2DLayer::BatchNormalization2DLayer(VolumeSize size, double momentum) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
+	gamma(1, 1, size.deep), dgamma(1, 1, size.deep), beta(1, 1, size.deep), dbeta(1, 1, size.deep), 
+	mu(1, 1, size.deep), var(1, 1, size.deep), running_mu(1, 1, size.deep), running_var(1, 1, size.deep) {
 
 	this->momentum = momentum;
-	wh = width * height;
+	wh = size.width * size.height;
+
+	name = "batch norm 2D";
+	info = "moment: " + std::to_string(momentum);
 
 	InitParams();
 	InitWeights();
 }
 
-BatchNormalization2DLayer::BatchNormalization2DLayer(int width, int height, int deep, double momentum, std::ifstream &f) : NetworkLayer(width, height, deep, width, height, deep),
-	gamma(width, height, deep), dgamma(width, height, deep), beta(width, height, deep), dbeta(width, height, deep), 
-	mu(width, height, deep), var(width, height, deep), running_mu(width, height, deep), running_var(width, height, deep) {
+BatchNormalization2DLayer::BatchNormalization2DLayer(VolumeSize size, double momentum, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
+	gamma(size.width, size.height, size.deep), dgamma(size.width, size.height, size.deep), beta(size.width, size.height, size.deep), dbeta(size.width, size.height, size.deep), 
+	mu(size.width, size.height, size.deep), var(size.width, size.height, size.deep), running_mu(size.width, size.height, size.deep), running_var(size.width, size.height, size.deep) {
 
 	this->momentum = momentum;
-	wh = width * height;
+	wh = size.width * size.height;
+
+	name = "batch norm 2D";
+	info = "moment: " + std::to_string(momentum);
 
 	InitParams();
 	LoadWeights(f);
@@ -105,16 +110,6 @@ void BatchNormalization2DLayer::LoadWeights(std::ifstream &f) {
 
 	for (int i = 0; i < outputSize.deep; i++)
 		f >> running_var[i];
-}
-
-// вывод конфигурации
-void BatchNormalization2DLayer::PrintConfig() const {
-	std::cout << "| batch norm. 2D | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << GetTrainableParams() << " | ";
-	std::cout << "moment: " << momentum;
-	std::cout << std::endl;
 }
 
 // получение количество обучаемых параметров
@@ -237,7 +232,7 @@ void BatchNormalization2DLayer::ResetCache() {
 
 // сохранение слоя в файл
 void BatchNormalization2DLayer::Save(std::ofstream &f) const {
-	f << "batchnormalization2D " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << momentum << std::endl;
+	f << "batchnormalization2D " << inputSize << " " << momentum << std::endl;
 
 	for (int i = 0; i < outputSize.deep; i++)
 		f << std::setprecision(15) << gamma[i] << " ";

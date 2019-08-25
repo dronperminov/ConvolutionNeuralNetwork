@@ -12,9 +12,8 @@ class ELULayer : public NetworkLayer {
 	double alpha;
 
 public:
-	ELULayer(int width, int height, int deep, double alpha);
+	ELULayer(VolumeSize size, double alpha);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -23,19 +22,12 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-ELULayer::ELULayer(int width, int height, int deep, double alpha) : NetworkLayer(width, height, deep, width, height, deep) {
+ELULayer::ELULayer(VolumeSize size, double alpha) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
 	this->alpha = alpha;
-	total = width * height * deep;
-}
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void ELULayer::PrintConfig() const {
-	std::cout << "| elu            | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << "alpha: " << alpha;
-	std::cout << std::endl;
+	name = "elu";
+	info = "alpha: " + std::to_string(alpha);
 }
 
 // получение количества обучаемых параметров
@@ -73,5 +65,5 @@ void ELULayer::Backward(const std::vector<Volume> &dout, const std::vector<Volum
 
 // сохранение слоя в файл
 void ELULayer::Save(std::ofstream &f) const {
-	f << "elu " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << alpha << std::endl;
+	f << "elu " << inputSize << " " << alpha << std::endl;
 }

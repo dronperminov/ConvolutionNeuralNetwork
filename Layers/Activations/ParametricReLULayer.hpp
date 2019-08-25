@@ -18,10 +18,9 @@ class ParametricReLULayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	ParametricReLULayer(int width, int height, int deep);
-	ParametricReLULayer(int width, int height, int deep, std::ifstream &f);
+	ParametricReLULayer(VolumeSize size);
+	ParametricReLULayer(VolumeSize size, std::ifstream &f);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -37,18 +36,24 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ParametricReLULayer::ParametricReLULayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep), alpha(1, 1, width * height * deep), dalpha(1, 1, width * height * deep) {
-	total = width * height * deep;
+ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+	total = size.width * size.height * size.deep;
 
 	InitParams();
 	InitWeights();
+
+	name = "param. relu";
+	info = "";
 }
 
-ParametricReLULayer::ParametricReLULayer(int width, int height, int deep, std::ifstream &f) : NetworkLayer(width, height, deep, width, height, deep), alpha(1, 1, width * height * deep), dalpha(1, 1, width * height * deep) {
-	total = width * height * deep;
+ParametricReLULayer::ParametricReLULayer(VolumeSize size, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+	total = size.width * size.height * size.deep;
 
 	InitParams();
 	LoadWeights(f);
+
+	name = "param. relu";
+	info = "";
 }
 
 // инициализация параметров для обучения
@@ -67,15 +72,6 @@ void ParametricReLULayer::InitWeights() {
 void ParametricReLULayer::LoadWeights(std::ifstream &f) {
 	for (int i = 0; i < total; i++)
 		f >> alpha[i];
-}
-
-// вывод конфигурации
-void ParametricReLULayer::PrintConfig() const {
-	std::cout << "| param. relu    | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << GetTrainableParams() << " | ";
-	std::cout << std::endl;
 }
 
 // получение количества обучаемых параметров
@@ -135,7 +131,7 @@ void ParametricReLULayer::ResetCache() {
 
 // сохранение слоя в файл
 void ParametricReLULayer::Save(std::ofstream &f) const {
-	f << "prelu " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "prelu " << inputSize << std::endl;
 
 	for (int i = 0; i < total; i++)
 		f << std::setprecision(15) << alpha[i] << " ";

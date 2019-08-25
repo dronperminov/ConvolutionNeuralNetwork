@@ -14,9 +14,8 @@ class MaxPoolingLayer : public NetworkLayer {
 	std::vector<int> dj;
 
 public:
-	MaxPoolingLayer(int width, int height, int deep, int scale = 2);
+	MaxPoolingLayer(VolumeSize size, int scale = 2);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количество обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -25,29 +24,23 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-MaxPoolingLayer::MaxPoolingLayer(int width, int height, int deep, int scale) : NetworkLayer(width, height, deep, width / scale, height / scale, deep) {
-	if (width % scale != 0 || height % scale != 0)
+MaxPoolingLayer::MaxPoolingLayer(VolumeSize size, int scale) : NetworkLayer(size.width, size.height, size.deep, size.width / scale, size.height / scale, size.deep) {
+	if (size.width % scale != 0 || size.height % scale != 0)
 		throw std::runtime_error("Unable creating maxpool layer with this scale");
+
+	name = "max pooling";
+	info = "scale: " + std::to_string(scale);
 
 	this->scale = scale;
 
-	di = std::vector<int>(height);
-	dj = std::vector<int>(width);
+	di = std::vector<int>(size.height);
+	dj = std::vector<int>(size.width);
 
-	for (int i = 0; i < height; i++)
+	for (int i = 0; i < size.height; i++)
 		di[i] = i / scale;
 
-	for (int i = 0; i < width; i++)
+	for (int i = 0; i < size.width; i++)
 		dj[i] = i / scale;
-}
-
-// вывод конфигурации
-void MaxPoolingLayer::PrintConfig() const {
-	std::cout << "| max pooling    | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << "scale: " << scale << std::endl; 
 }
 
 // получение количество обучаемых параметров
@@ -102,5 +95,5 @@ void MaxPoolingLayer::Backward(const std::vector<Volume> &dout, const std::vecto
 
 // сохранение слоя в файл
 void MaxPoolingLayer::Save(std::ofstream &f) const {
-	f << "maxpool " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << scale << std::endl;
+	f << "maxpool " << inputSize << " " << scale << std::endl;
 }

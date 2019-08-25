@@ -11,9 +11,8 @@ class LogSigmoidLayer : public NetworkLayer {
 	int total;
 
 public:
-	LogSigmoidLayer(int width, int height, int deep);
+	LogSigmoidLayer(VolumeSize size);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -22,17 +21,11 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-LogSigmoidLayer::LogSigmoidLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
-	total = width * height * deep;
-}
+LogSigmoidLayer::LogSigmoidLayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void LogSigmoidLayer::PrintConfig() const {
-	std::cout << "| logsigmoid     | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << std::endl;
+	name = "logsigmoid";
+	info = "";
 }
 
 // получение количества обучаемых параметров
@@ -64,5 +57,5 @@ void LogSigmoidLayer::Backward(const std::vector<Volume> &dout, const std::vecto
 
 // сохранение слоя в файл
 void LogSigmoidLayer::Save(std::ofstream &f) const {
-	f << "logsigmoid " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "logsigmoid " << inputSize << std::endl;
 }

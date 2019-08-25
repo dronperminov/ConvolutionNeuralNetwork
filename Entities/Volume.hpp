@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <string>
 
 #include "GaussRandom.hpp"
 
@@ -11,9 +12,16 @@ struct VolumeSize {
 	int height; // высота
 	int width; // ширина
 
-	friend std::ostream& operator<<(std::ostream& os, VolumeSize size) {
-		std::string s = "[" + std::to_string(size.width) + "x" + std::to_string(size.height) + "x" + std::to_string(size.deep) + "]";
-		return os << s;
+	std::string ToString() const {
+		return std::to_string(width) + "x" + std::to_string(height) + "x" + std::to_string(deep);
+	}
+
+	friend std::ostream& operator<<(std::ostream& os, const VolumeSize &size) {
+		return os << size.width << " " << size.height << " " << size.deep;
+	}
+
+	friend std::istream& operator>>(std::istream& is, VolumeSize &size) {
+		return is >> size.width >> size.height >> size.deep;
 	}
 };
 

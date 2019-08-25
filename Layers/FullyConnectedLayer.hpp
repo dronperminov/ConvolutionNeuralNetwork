@@ -44,10 +44,9 @@ class FullyConnectedLayer : public NetworkLayer {
 	void Activate(int batchIndex, int i, double value); // применение активационной функции
 
 public:
-	FullyConnectedLayer(int height, int width, int deep, int outputs, const std::string& type = "none");
-	FullyConnectedLayer(int height, int width, int deep, int outputs, const std::string& type, std::ifstream &f);
+	FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type = "none");
+	FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -67,22 +66,34 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-FullyConnectedLayer::FullyConnectedLayer(int height, int width, int deep, int outputs, const std::string& type) : NetworkLayer(height, width, deep, 1, 1, outputs), W(outputs, height * width * deep), dW(outputs, height * width * deep), b(outputs), db(outputs) {
-	this->inputs = height * width * deep;
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type) : NetworkLayer(size.height, size.width, size.deep, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 
 	activationType = GetActivationType(type);
+
+	name = "fc";
+	info = std::to_string(outputs) + " neurons";
+
+	if (activationType != ActivationType::None)
+		info += ", f: " + GetActivationType();
 
 	InitParams();
 	InitWeights();
 }
 
-FullyConnectedLayer::FullyConnectedLayer(int height, int width, int deep, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(height, width, deep, 1, 1, outputs), W(outputs, height * width * deep), dW(outputs, height * width * deep), b(outputs), db(outputs) {
-	this->inputs = height * width * deep;
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(size.height, size.width, size.deep, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 
 	activationType = GetActivationType(type);
 
+	name = "fc";
+	info = std::to_string(outputs) + " neurons";
+
+	if (activationType != ActivationType::None)
+		info += ", f: " + GetActivationType();
+	
 	InitParams();
 	LoadWeights(f);
 }
@@ -209,20 +220,6 @@ void FullyConnectedLayer::Activate(int batchIndex, int i, double value) {
 	}
 }
 
-// вывод конфигурации
-void FullyConnectedLayer::PrintConfig() const {
-	std::cout << "| full connected | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << GetTrainableParams() << " | ";
-	std::cout << outputs << " neurons";
-
-	if (activationType != ActivationType::None)
-		std::cout << ", f: " << GetActivationType();
-
-	std::cout << std::endl;
-}
-
 // получение количество обучаемых параметров
 int FullyConnectedLayer::GetTrainableParams() const {
 	return outputs * (inputs + 1);
@@ -301,7 +298,7 @@ void FullyConnectedLayer::ResetCache() {
 
 // сохранение слоя в файл
 void FullyConnectedLayer::Save(std::ofstream &f) const {
-	f << "fc " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " " << outputs << " " << GetActivationType() << std::endl;
+	f << "fc " << inputSize << " " << outputs << " " << GetActivationType() << std::endl;
 
 	for (int i = 0; i < outputs; i++) {
 		for (int j = 0; j < inputs; j++)

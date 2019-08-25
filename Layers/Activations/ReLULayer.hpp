@@ -11,9 +11,8 @@ class ReLULayer : public NetworkLayer {
 	int total;
 
 public:
-	ReLULayer(int width, int height, int deep);
+	ReLULayer(VolumeSize size);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -22,17 +21,11 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-ReLULayer::ReLULayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
-	total = width * height * deep;
-}
+ReLULayer::ReLULayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void ReLULayer::PrintConfig() const {
-	std::cout << "| relu           | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << std::endl;
+	name = "relu";
+	info = "";
 }
 
 // получение количества обучаемых параметров
@@ -70,5 +63,5 @@ void ReLULayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 
 // сохранение слоя в файл
 void ReLULayer::Save(std::ofstream &f) const {
-	f << "relu " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "relu " << inputSize << std::endl;
 }

@@ -30,10 +30,9 @@ class ConvLayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S);
-	ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S, std::ifstream &f);
+	ConvLayer(VolumeSize size, int fc, int fs, int P, int S);
+	ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -53,8 +52,8 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S) : NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
-	if ((width - fs + 2 * P) % S != 0 || (height - fs + 2 * P) % S != 0)
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size.width, size.height, size.deep, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+	if ((size.width - fs + 2 * P) % S != 0 || (size.height - fs + 2 * P) % S != 0)
 		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
 
 	this->P = P;
@@ -62,7 +61,10 @@ ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int
 
 	this->fc = fc;
 	this->fs = fs;
-	this->fd = deep;
+	this->fd = size.deep;
+
+	name = "conv";
+	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P) + " S:" + std::to_string(S);
 
 	for (int i = 0; i < fc; i++) {
 		W.push_back(Volume(fs, fs, fd));
@@ -76,8 +78,8 @@ ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int
 	InitWeights();
 }
 
-ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(width, height, deep, (width - fs + 2 * P) / S + 1, (height - fs + 2 * P) / S + 1, fc) {
-	if ((width - fs + 2 * P) % S != 0 || (height - fs + 2 * P) % S != 0)
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+	if ((size.width - fs + 2 * P) % S != 0 || (size.height - fs + 2 * P) % S != 0)
 		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
 
 	this->P = P;
@@ -85,7 +87,10 @@ ConvLayer::ConvLayer(int width, int height, int deep, int fc, int fs, int P, int
 
 	this->fc = fc;
 	this->fs = fs;
-	this->fd = deep;
+	this->fd = size.deep;
+
+	name = "conv";
+	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P) + " S:" + std::to_string(S);
 
 	for (int i = 0; i < fc; i++) {
 		W.push_back(Volume(fs, fs, fd));
@@ -129,14 +134,6 @@ void ConvLayer::LoadWeights(std::ifstream &f) {
 
 		f >> b[index];
 	}
-}
-
-void ConvLayer::PrintConfig() const {
-	std::cout << "| convolution    | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << std::setw(12) << (fc * (fs*fs*fd + 1)) << " | ";
-	std::cout << fc << " filters [" << fs << "x" << fs << "x" << fd << "] P:" << P << " S:" << S << std::endl;
 }
 
 // получение количество обучаемых параметров
@@ -292,7 +289,7 @@ void ConvLayer::ResetCache() {
 
 // сохранение слоя в файл
 void ConvLayer::Save(std::ofstream &f) const {
-	f << "conv " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << " ";
+	f << "conv " << inputSize << " ";
 	f << fs << " " << fc << " " << P << " " << S << std::endl;
 
 	for (int index = 0; index < fc; index++) {

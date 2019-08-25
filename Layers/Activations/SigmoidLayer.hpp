@@ -11,9 +11,8 @@ class SigmoidLayer : public NetworkLayer {
 	int total;
 
 public:
-	SigmoidLayer(int width, int height, int deep);
+	SigmoidLayer(VolumeSize size);
 
-	void PrintConfig() const; // вывод конфигурации
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
@@ -22,17 +21,11 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-SigmoidLayer::SigmoidLayer(int width, int height, int deep) : NetworkLayer(width, height, deep, width, height, deep) {
-	total = width * height * deep;
-}
+SigmoidLayer::SigmoidLayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+	total = size.width * size.height * size.deep;
 
-// вывод конфигурации
-void SigmoidLayer::PrintConfig() const {
-	std::cout << "| sigmoid        | ";
-	std::cout << std::setw(12) << inputSize << " | ";
-	std::cout << std::setw(13) << outputSize << " | ";
-	std::cout << "           0 | ";
-	std::cout << std::endl;
+	name = "sigmoid";
+	info = "";
 }
 
 // получение количества обучаемых параметров
@@ -66,5 +59,5 @@ void SigmoidLayer::Backward(const std::vector<Volume> &dout, const std::vector<V
 
 // сохранение слоя в файл
 void SigmoidLayer::Save(std::ofstream &f) const {
-	f << "sigmoid " << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl;
+	f << "sigmoid " << inputSize << std::endl;
 }
