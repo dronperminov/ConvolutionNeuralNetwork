@@ -194,82 +194,67 @@ void ConvLayer::Forward(const std::vector<Volume> &X) {
 
 // обратное распространение
 void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
-	if (calc_dX) {
-		int P = fs - 1 - this->P;
+	#pragma omp parallel for
+	for (int f = 0; f < fc; f++) {
+		for (size_t n = 0; n < dout.size(); n++) {
+			for (int k = 0; k < outputSize.height; k++) {
+				for (int l = 0; l < outputSize.width; l++) {
+					double delta = dout[n](f, k, l) * df[n](f, k, l); // значение фильтра
 
-		#pragma omp parallel for collapse(2)
-		for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
-			for (int d = 0; d < inputSize.deep; d++) {
-				for (int y = 0, y0 = -P; y < inputSize.height; y++, y0 += S) {
-					int imin = std::max(-y0, 0);
-					int imax = std::min(fs, outputSize.height - y0);
+					for (int i = 0; i < fs; i++) {
+						int i0 = S * i + k - P;
 
-					for (int x = 0, x0 = -P; x < inputSize.width; x++, x0 += S) {
-						int jmin = std::max(-x0, 0);
-						int jmax = std::min(fs, outputSize.width - x0);
+						if (i0 < 0 || i0 >= inputSize.height)
+							continue;
 
-						double sum = 0; // значение элемента ij результирующей матрицы
+						for (int j = 0; j < fs; j++) {
+							int j0 = S * j + l - P;
 
-						for (int i = imin; i < imax; i++) {
-							int i0 = y0 + i;
+							if (j0 < 0 || j0 >= outputSize.width)
+								continue;
 
-							for (int j = jmin; j < jmax; j++) {
-								int j0 = x0 + j;
-
-								for (int k = 0; k < fc; k++) {
-									double weight = W[k](d, fs - 1 - i, fs - 1 - j); // значение фильтра
-									double value = dout[batchIndex](k, i0, j0) * df[batchIndex](k, i0, j0); // значение входного объёма
-
-									sum += weight * value; // прибавляем взвешенное произведение
-								}
-
-							}
+							for (int c = 0; c < fd; c++)
+								dW[f](c, i, j) += delta * X[n](c, i0, j0);
 						}
-
-						dX[batchIndex](d, y, x) = sum;
 					}
+
+					db[f] += delta;
 				}
 			}
 		}
 	}
 
-	#pragma omp parallel for collapse(2) 
-	for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++) {
-		for (int index = 0; index < fc; index++) {
-			for (int y = 0, y0 = -P; y < fs; y++, y0 += S) {
-				int imin = std::max(-y0, 0);
-				int imax = std::min(outputSize.height, inputSize.height - y0);
+	if (calc_dX) {
+		int pad = fs - 1 - P;
 
-				for (int x = 0, x0 = -P; x < fs; x++, x0 += S) {
-					int jmin = std::max(-x0, 0);
-					int jmax = std::min(outputSize.width, inputSize.width - x0);
-
-					for (int d = 0; d < fd; d++) {
+		#pragma omp parallel for collapse(3)
+		for (size_t n = 0; n < dout.size(); n++) {
+			for (int i = 0; i < inputSize.height; i++) {
+				for (int j = 0; j < inputSize.width; j++) {
+					for (int c = 0; c < fd; c++) {
 						double sum = 0;
 
-						for (int i = imin; i < imax; i++) {
-							int i0 = y0 + i;
+						for (int k = 0; k < fs; k++) {
+							int i0 = i+k-pad;
 
-							for (int j = jmin; j < jmax; j++) {
-								int j0 = x0 + j;
+							if (i0 < 0 || i0 >= outputSize.height)
+								continue;
 
-								double weight = dout[batchIndex](index, i, j) * df[batchIndex](index, i, j); // значение фильтра
-								double value = X[batchIndex](d, i0, j0); // значение входного объёма
+							for (int l = 0; l < fs; l++) {
+								int j0 = j+l-pad;
 
-								sum += weight * value; // прибавляем взвешенное произведение
+								if (j0 < 0 || j0 >= outputSize.width)
+									continue;
+
+								for (int f = 0; f < fc; f++)
+									sum += W[f](c, fs - 1 - k, fs - 1 - l) * dout[n](f, i0, j0) * df[n](f, i0, j0);
 							}
 						}
 
-						#pragma omp atomic
-						dW[index](d, y, x) += sum;
+						dX[n](c, i, j) = sum;
 					}
 				}
 			}
-
-			for (int i = 0; i < outputSize.height; i++)
-				for (int j = 0; j < outputSize.width; j++)
-					#pragma omp atomic
-					db[index] += dout[batchIndex](index, i, j) * df[batchIndex](index, i, j);
 		}
 	}
 }
