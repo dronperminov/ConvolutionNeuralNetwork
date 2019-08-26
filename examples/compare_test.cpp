@@ -83,7 +83,7 @@ int main() {
 		std::vector<double> trainAcc;
 		std::vector<double> testAcc;
 
-		srand(i);
+		srand(1);
 
 		for (int k = 0; k < maxEpochs; k++) {
 			optimizer.SetEpoch(k + 1);
