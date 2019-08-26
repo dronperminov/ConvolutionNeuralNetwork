@@ -17,9 +17,9 @@ int main() {
 
 	int trainCount = 50000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.009; // скорость обучения
+	double learningRate = 0.001; // скорость обучения
 	int batchSize = 64; // размер батча
-	int maxEpochs = 50; // число эпох обучения
+	int maxEpochs = 100; // число эпох обучения
 
 	Network network(width, height, deep);
 
@@ -30,16 +30,16 @@ int main() {
 	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
 
-	network.AddLayer("conv filter_size=3 filters=64 P=1");
+	network.AddLayer("conv filter_size=3 filters=32 P=1");
 	network.AddLayer("batchnormalization2D");
-	network.AddLayer("conv filter_size=3 filters=64 P=1");
+	network.AddLayer("conv filter_size=3 filters=32 P=1");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
 
-	network.AddLayer("conv filter_size=3 filters=128 P=1");
+	network.AddLayer("conv filter_size=3 filters=64 P=1");
 	network.AddLayer("batchnormalization2D");
-	network.AddLayer("conv filter_size=3 filters=128 P=1");
+	network.AddLayer("conv filter_size=3 filters=64 P=1");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
@@ -56,7 +56,7 @@ int main() {
 
 	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 
-	Optimizer optimizer = Optimizer::SGDm(learningRate);
+	Optimizer optimizer = Optimizer::Adam(learningRate);
 
 	double bestAcc = 0;
 
@@ -80,10 +80,6 @@ int main() {
 
 			bestAcc = testAcc; // обновляем максимальную точность
 			network.Save("cifar10_" + to_string(bestAcc) + ".txt"); // и сохраняем сеть
-			optimizer.ChangeLearningRate(1.1);
-		}
-		else {
-			optimizer.ChangeLearningRate(0.9);
 		}
 
 		cout << "Best: " << bestAcc << endl << endl; // выводим лучшую точность
