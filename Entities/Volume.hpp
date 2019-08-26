@@ -77,7 +77,6 @@ Volume::Volume(VolumeSize size) {
 	Init(size.width, size.height, size.deep);
 }
 
-#include <cassert>
 // индексация
 double& Volume::operator()(int d, int i, int j) {
 	return values[i * dw + j * size.deep + d];

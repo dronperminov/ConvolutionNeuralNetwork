@@ -49,7 +49,7 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t, Volume &del
 	}
 	else if (type == LossType::CrossEntropy) {
 		for (int i = 0; i < total; i++) {
-			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
+			double yi = y[i];
 			double ti = t[i];
 
 			deltas[i] = -ti / yi;
@@ -58,7 +58,7 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t, Volume &del
 	}
 	else if (type == LossType::BinaryCrossEntropy) {
 		for (int i = 0; i < total; i++) {
-			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
+			double yi = y[i];
 			double ti = t[i];
 
 			deltas[i] = (yi - ti) / (yi * (1 - yi));
@@ -108,7 +108,7 @@ double LossFunction::CalculateLoss(const Volume &y, const Volume &t) const {
 	}
 	else if (type == LossType::BinaryCrossEntropy) {
 		for (int i = 0; i < total; i++) {
-			double yi = std::max(1e-7, std::min(1 - 1e-7, y[i]));
+			double yi = y[i];
 			double ti = t[i];
 
 			loss -= ti * log(yi) + (1 - ti) * log(1 - yi);;

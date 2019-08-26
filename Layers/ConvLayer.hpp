@@ -199,7 +199,7 @@ void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 						for (int j = 0; j < fs; j++) {
 							int j0 = S * j + l - P;
 
-							if (j0 < 0 || j0 >= outputSize.width)
+							if (j0 < 0 || j0 >= inputSize.width)
 								continue;
 
 							for (int c = 0; c < fd; c++)
