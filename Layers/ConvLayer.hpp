@@ -143,45 +143,37 @@ int ConvLayer::GetTrainableParams() const {
 
 // прямое распространение
 void ConvLayer::Forward(const std::vector<Volume> &X) {
-	// выполняем свёртку с каждым фильтром
-	#pragma omp parallel for collapse(2)
-	for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++) {
-		for (int index = 0; index < fc; index++) {
-			for (int y = 0, y0 = -P; y < outputSize.height; y++, y0 += S) {
-				int imin = std::max(-y0, 0);
-				int imax = std::min(fs, inputSize.height - y0);
+	#pragma omp parallel for collapse(4)
+	for (size_t n = 0; n < X.size(); n++) {
+		for (int f = 0; f < fc; f++) {
+			for (int i = 0; i < outputSize.height; i++) {
+				for (int j = 0; j < outputSize.width; j++) {
+					double sum = b[f];
 
-				for (int x = 0, x0 = -P; x < outputSize.width; x++, x0 += S) {
-					int jmin = std::max(-x0, 0);
-					int jmax = std::min(fs, inputSize.width - x0);
+					for (int k = 0; k < fs; k++) {
+						int i0 = S * i + k - P;
 
-					double sum = b[index]; // значение элемента ij результирующей матрицы
+						if (i0 < 0 || i0 >= inputSize.height)
+							continue;
 
-					// проходимся по всем значениям фильтра
-					for (int i = imin; i < imax; i++) {
-						int i0 = y0 + i;
+						for (int l = 0; l < fs; l++) {
+							int j0 = S * j + l - P;
 
-						for (int j = jmin; j < jmax; j++) {
-							int j0 = x0 + j;
+							if (j0 < 0 || j0 >= inputSize.width)
+								continue;
 
-							for (int k = 0; k < fd; k++) {
-								double weight = W[index](k, i, j); // значение фильтра
-								double value = X[batchIndex](k, i0, j0); // значение входного объёма
-
-								sum += weight * value; // прибавляем взвешенное произведение
-							}
-
+							for (int c = 0; c < fd; c++)
+								sum += X[n](c, i0, j0) * W[f](c, k, l);
 						}
 					}
 
-					// записываем значение в матрицу
 					if (sum > 0) {
-						output[batchIndex](index, y, x) = sum;
-						df[batchIndex](index, y, x) = 1;
+						output[n](f, i, j) = sum;
+						df[n](f, i, j) = 1;
 					}
 					else {
-						output[batchIndex](index, y, x) = 0;
-						df[batchIndex](index, y, x) = 0;
+						output[n](f, i, j) = 0;
+						df[n](f, i, j) = 0;
 					}
 				}
 			}
