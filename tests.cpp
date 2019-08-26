@@ -3,6 +3,7 @@
 
 #include "Layers/ConvLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
+#include "Layers/AveragePoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
 #include "Layers/DropoutLayer.hpp"
 #include "Layers/BatchNormalizationLayer.hpp"
@@ -12,7 +13,12 @@ using namespace std;
 
 void FullyConnectedLayerTest() {
 	cout << "Full connected tests: ";
-	FullyConnectedLayer layer(1, 1, 8, 4, "relu");
+	VolumeSize size;
+	size.height = 1;
+	size.width = 1;
+	size.deep = 8;
+
+	FullyConnectedLayer layer(size, 4, "relu");
 	layer.SetBatchSize(1);
 
 	double weights[4][8] = {
@@ -77,7 +83,13 @@ void FullyConnectedLayerTest() {
 
 void MaxPoolingLayerTest() {
 	cout << "Max pooling tests: ";
-	MaxPoolingLayer layer(4, 4, 1, 2);
+
+	VolumeSize size;
+	size.height = 4;
+	size.width = 4;
+	size.deep = 1;
+
+	MaxPoolingLayer layer(size, 2);
 	layer.SetBatchSize(1);
 	Volume input(4, 4, 1);
 
@@ -149,9 +161,95 @@ void MaxPoolingLayerTest() {
 	cout << "OK" << endl;
 }
 
+void AveragePoolingLayerTest() {
+	cout << "Average pooling tests: ";
+
+	VolumeSize size;
+	size.height = 4;
+	size.width = 4;
+	size.deep = 1;
+
+	AveragePoolingLayer layer(size, 2);
+	layer.SetBatchSize(1);
+	Volume input(4, 4, 1);
+
+	input(0, 0, 0) = 1;
+	input(0, 0, 1) = 9;
+	input(0, 0, 2) = 8;
+	input(0, 0, 3) = 4;
+
+	input(0, 1, 0) = 4;
+	input(0, 1, 1) = 8;
+	input(0, 1, 2) = 6;
+	input(0, 1, 3) = 7;
+
+	input(0, 2, 0) = 4;
+	input(0, 2, 1) = 0;
+	input(0, 2, 2) = 5;
+	input(0, 2, 3) = 9;
+
+	input(0, 3, 0) = 7;
+	input(0, 3, 1) = 3;
+	input(0, 3, 2) = 5;
+	input(0, 3, 3) = 4;
+
+
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
+
+	assert(output.Width() == 2);
+	assert(output.Height() == 2);
+	assert(output.Deep() == 1);
+
+	assert(output(0, 0, 0) == 5.5);
+	assert(output(0, 0, 1) == 6.25);
+	assert(output(0, 1, 0) == 3.5);
+	assert(output(0, 1, 1) == 5.75);
+
+	Volume deltas(2, 2, 1);
+
+	deltas(0, 0, 0) = 1.2;
+	deltas(0, 0, 1) = 1.9;
+	deltas(0, 1, 0) = 0.9;
+	deltas(0, 1, 1) = 0.3;
+
+
+	layer.Backward({deltas}, {input}, true);
+
+	Volume& deltas2 = layer.GetDeltas()[0];
+
+	assert(deltas2(0, 0, 0) == 1.2 / 4);
+	assert(deltas2(0, 0, 1) == 1.2 / 4);
+	assert(deltas2(0, 0, 2) == 1.9 / 4);
+	assert(deltas2(0, 0, 3) == 1.9 / 4);
+
+	assert(deltas2(0, 1, 0) == 1.2 / 4);
+	assert(deltas2(0, 1, 1) == 1.2 / 4);
+	assert(deltas2(0, 1, 2) == 1.9 / 4);
+	assert(deltas2(0, 1, 3) == 1.9 / 4);
+
+	assert(deltas2(0, 2, 0) == 0.9 / 4);
+	assert(deltas2(0, 2, 1) == 0.9 / 4);
+	assert(deltas2(0, 2, 2) == 0.3 / 4);
+	assert(deltas2(0, 2, 3) == 0.3 / 4);
+
+	assert(deltas2(0, 3, 0) == 0.9 / 4);
+	assert(deltas2(0, 3, 1) == 0.9 / 4);
+	assert(deltas2(0, 3, 2) == 0.3 / 4);
+	assert(deltas2(0, 3, 3) == 0.3 / 4);
+
+	cout << "OK" << endl;
+}
+
 void ConvLayerTest() {
 	cout << "Conv tests: ";
-	ConvLayer layer(5, 5, 3, 2, 3, 1, 2);
+
+	VolumeSize size;
+	size.height = 5;
+	size.width = 5;
+	size.deep = 3;
+
+	ConvLayer layer(size, 2, 3, 1, 2);
 	layer.SetBatchSize(1);
 	Volume input(5, 5, 3);
 
@@ -204,7 +302,11 @@ void ConvLayerTest() {
 	assert(output(1, 2, 1) == 4);
 	assert(output(1, 2, 2) == 3);
 
-	ConvLayer layer2(4, 4, 1, 1, 3, 0, 1);
+	size.height = 4;
+	size.width = 4;
+	size.deep = 1;
+
+	ConvLayer layer2(size, 1, 3, 0, 1);
 	layer2.SetBatchSize(1);
 	layer2.SetBias(0, 0);
 
@@ -280,7 +382,12 @@ void DropoutTest() {
 	for (int i = 0; i < 10; i++)
 		input[i] = 1;
 
-	DropoutLayer layer(1, 1, 10, 0.2);
+	VolumeSize size;
+	size.height = 1;
+	size.width = 1;
+	size.deep = 10;
+
+	DropoutLayer layer(size, 0.2);
 	layer.SetBatchSize(1);
 
 	for (int i = 0; i < 10; i++)
@@ -301,9 +408,9 @@ void GradientCheckingTest() {
 	VolumeSize inputSize;
 	VolumeSize outputSize;
 
-	inputSize.width = 16;
-	inputSize.height = 16;
-	inputSize.deep = 3;
+	inputSize.width = 28;
+	inputSize.height = 28;
+	inputSize.deep = 1;
 
 	outputSize.width = 1;
 	outputSize.height = 1;
@@ -334,7 +441,6 @@ void GradientCheckingTest() {
 	network.AddLayer("batchnormalization");
 	network.AddLayer("relu");
 	network.AddLayer("fullconnected outputs=20 activation=tanh");
-	network.AddLayer("batchnormalization");
 	network.AddLayer("fullconnected outputs=16 activation=sigmoid");
 	network.AddLayer("fullconnected outputs=10 activation=none");
 	network.AddLayer("softmax");
@@ -350,6 +456,7 @@ void GradientCheckingTest() {
 int main() {
 	ConvLayerTest();
 	MaxPoolingLayerTest();
+	AveragePoolingLayerTest();
 	FullyConnectedLayerTest();
 	DropoutTest();
 	GradientCheckingTest();
