@@ -12,6 +12,8 @@
 #include "Layers/AveragePoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
 
+#include "Layers/ResidualLayer.hpp"
+
 #include "Layers/DropoutLayer.hpp"
 #include "Layers/BatchNormalizationLayer.hpp"
 #include "Layers/BatchNormalization2DLayer.hpp"
@@ -169,6 +171,14 @@ void Network::AddLayer(const std::string& layerConf) {
 		std::string type = parser.Get("activation", "none");
 
 		layer = new FullyConnectedLayer(size, std::stoi(outputs), type);
+	}
+	else if (parser["residual"] || parser["res"]) {
+		if (!parser["features"])
+			throw std::runtime_error("Unable to add residual layer. Features are not set");
+
+		std::string features = parser.Get("features");
+
+		layer = new ResidualLayer(size, std::stod(features));
 	}
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size);
@@ -442,6 +452,12 @@ void Network::Load(const std::string &path, bool verbose) {
 
 			layer = new FullyConnectedLayer(size, outputs, type, f);
 		}
+		else if (layerType == "residual" || layerType == "res") {
+			int features;
+			f >> features;
+
+			layer = new ResidualLayer(size, features, f);
+		}
 		else if (layerType == "dropout") {
 			double p;
 			f >> p;
@@ -524,9 +540,12 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 
 		std::cout << "Layer " << (i + 1) << ": ";
 
+		double maxGrad = 0;
+		double maxDf = 0;
+
 		for (int index = 0; index < trainableParams; index++) {
 			double weight = layers[i]->GetParam(index);
-			double eps = 1e-6;
+			double eps = 4e-6;
 
 			layers[i]->SetParam(index, weight + eps);
 			double E1 = E.CalculateLoss(Forward(inputData), outputData);
@@ -555,13 +574,16 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 			double grad = layers[i]->GetGradient(index);
 			double num_grad = (E1 - E2) / (eps * 2);
 
+			maxGrad = std::max(fabs(grad), maxGrad);
+			maxDf = std::max(fabs(grad - num_grad), maxDf);
+
 			if (fabs(grad - num_grad) > 1e-7) {
-				std::cout << "grad: " << grad << ", num_grad: " << num_grad << ", |grad - num_grad|: " << fabs(grad - num_grad) << std::endl;
+				std::cout << index << ". grad: " << grad << ", num_grad: " << num_grad << ", |grad - num_grad|: " << fabs(grad - num_grad) << std::endl;
 				throw std::runtime_error("GradientChecking failed at layer " + std::to_string(i + 1));
 			}
 		}
 
-		std::cout << "OK" << std::endl;
+		std::cout << "OK (max grad: " << maxGrad << ", max df: " << maxDf << ", " << trainableParams << " / " << trainableParams << ")" << std::endl;
 	}
 
 	std::cout << "Gradient checking: OK" << std::endl;
