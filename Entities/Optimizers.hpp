@@ -27,8 +27,6 @@ class Optimizer {
 	double param4; // четвёртый параметр оптимизатора
 	int epoch; // номер эпохи
 
-	void (Optimizer::*update)(double, double&, double&, double&, double&) const;
-
 	void UpdateSGD(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для стохастического градиентного спуска
 	void UpdateSGDm(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для стохастического градиентного спуска с моментом
 	void UpdateAdagrad(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для адаптивного градиента
@@ -74,42 +72,6 @@ Optimizer::Optimizer(OptimizerType type, double learningRate, double beta1, doub
 	this->param4 = param4;
 
 	this->epoch = 1;
-
-	if (type == OptimizerType::SGD) {
-		this->update = UpdateSGD;
-	}
-	else if (type == OptimizerType::SGDm) {
-		this->update = UpdateSGDm;
-	}
-	else if (type == OptimizerType::Adagrad) {
-		this->update = UpdateAdagrad;
-	}
-	else if (type == OptimizerType::Adadelta) {
-		this->update = UpdateAdadelta;
-	}
-	else if (type == OptimizerType::RMSprop) {
-		this->update = UpdateRMSprop;
-	}
-	else if (type == OptimizerType::NAG) {
-		this->update = UpdateNAG;
-	}
-	else if (type == OptimizerType::Adam) {
-		this->update = UpdateAdam;
-	}
-	else if (type == OptimizerType::AdaMax) {
-		this->update = UpdateAdaMax;
-	}
-	else if (type == OptimizerType::Nadam) {
-		this->update = UpdateNadam;
-	}
-	else if (type == OptimizerType::AMSgrad) {
-		this->update = UpdateAMSgrad;
-	}
-	else if (type == OptimizerType::AdaBound) {
-		this->update = UpdateAdaBound;
-	}
-	else
-		throw std::runtime_error("Invalid optimizer type");
 }
 
 // стохастический градиентный спуск
@@ -272,7 +234,51 @@ void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &dw3, d
 
 // обновление весовых коэффициентов
 void Optimizer::Update(double grad, double &dw, double &dw2, double &dw3, double &w) const {
-	(this->*update)(grad, dw, dw2, dw3, w);
+	switch (type) {
+		case OptimizerType::SGD:
+			UpdateSGD(grad, dw, dw2, dw3, w);
+			break;
+	
+		case OptimizerType::SGDm:
+			UpdateSGDm(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::Adagrad:
+			UpdateAdagrad(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::Adadelta:
+			UpdateAdadelta(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::RMSprop:
+			UpdateRMSprop(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::NAG:
+			UpdateNAG(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::Adam:
+			UpdateAdam(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::AdaMax:
+			UpdateAdaMax(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::Nadam:
+			UpdateNadam(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::AMSgrad:
+			UpdateAMSgrad(grad, dw, dw2, dw3, w);
+			break;
+
+		case OptimizerType::AdaBound:
+			UpdateAdaBound(grad, dw, dw2, dw3, w);
+			break;
+	}
 }
 
 // вывод информации об алгоритме
