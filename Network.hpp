@@ -9,6 +9,7 @@
 #include "Layers/NetworkLayer.hpp"
 #include "Layers/ConvLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
+#include "Layers/AveragePoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
 
 #include "Layers/DropoutLayer.hpp"
@@ -154,6 +155,11 @@ void Network::AddLayer(const std::string& layerConf) {
 		std::string scale = parser.Get("scale", "2");
 
 		layer = new MaxPoolingLayer(size, std::stoi(scale));
+	}
+	else if (parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
+		std::string scale = parser.Get("scale", "2");
+
+		layer = new AveragePoolingLayer(size, std::stoi(scale));
 	}
 	else if (parser["fc"] || parser["fullconnected"]) {
 		if (!parser["outputs"])
@@ -422,6 +428,12 @@ void Network::Load(const std::string &path, bool verbose) {
 			f >> scale;
 
 			layer = new MaxPoolingLayer(size, scale);
+		}
+		else if (layerType == "avgpool" || layerType == "avgpooling") {
+			int scale;
+			f >> scale;
+
+			layer = new AveragePoolingLayer(size, scale);
 		}
 		else if (layerType == "fc" || layerType == "fullconnected") {
 			int outputs;
