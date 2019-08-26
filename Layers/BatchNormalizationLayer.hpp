@@ -50,9 +50,8 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
-	gamma(size.width, size.height, size.deep), dgamma(size.width, size.height, size.deep), beta(size.width, size.height, size.deep), dbeta(size.width, size.height, size.deep), 
-	mu(size.width, size.height, size.deep), var(size.width, size.height, size.deep), running_mu(size.width, size.height, size.deep), running_var(size.width, size.height, size.deep) {
+BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum) : NetworkLayer(size),
+	gamma(size), dgamma(size), beta(size), dbeta(size), mu(size), var(size), running_mu(size), running_var(size) {
 
 	this->momentum = momentum;
 	total = size.width * size.height * size.deep;
@@ -64,9 +63,8 @@ BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentu
 	InitWeights();
 }
 
-BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep),
-	gamma(size.width, size.height, size.deep), dgamma(size.width, size.height, size.deep), beta(size.width, size.height, size.deep), dbeta(size.width, size.height, size.deep), 
-	mu(size.width, size.height, size.deep), var(size.width, size.height, size.deep), running_mu(size.width, size.height, size.deep), running_var(size.width, size.height, size.deep) {
+BatchNormalizationLayer::BatchNormalizationLayer(VolumeSize size, double momentum, std::ifstream &f) : NetworkLayer(size),
+	gamma(size), dgamma(size), beta(size), dbeta(size), mu(size), var(size), running_mu(size), running_var(size) {
 
 	this->momentum = momentum;
 	total = size.width * size.height * size.deep;

@@ -36,7 +36,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
 	total = size.width * size.height * size.deep;
 
 	InitParams();
@@ -46,7 +46,7 @@ ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size.wi
 	info = "";
 }
 
-ParametricReLULayer::ParametricReLULayer(VolumeSize size, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+ParametricReLULayer::ParametricReLULayer(VolumeSize size, std::ifstream &f) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
 	total = size.width * size.height * size.deep;
 
 	InitParams();

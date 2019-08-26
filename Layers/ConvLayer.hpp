@@ -52,7 +52,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size.width, size.height, size.deep, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
 	if ((size.width - fs + 2 * P) % S != 0 || (size.height - fs + 2 * P) % S != 0)
 		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
 
@@ -78,7 +78,7 @@ ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLay
 	InitWeights();
 }
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size.width, size.height, size.deep, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
 	if ((size.width - fs + 2 * P) % S != 0 || (size.height - fs + 2 * P) % S != 0)
 		throw std::runtime_error("Invalid params of ConvLayer. Unable to convolve");
 

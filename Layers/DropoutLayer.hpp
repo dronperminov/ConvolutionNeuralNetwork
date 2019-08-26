@@ -28,7 +28,7 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-DropoutLayer::DropoutLayer(VolumeSize size, double p) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep), distribution(1, 1 - p) {
+DropoutLayer::DropoutLayer(VolumeSize size, double p) : NetworkLayer(size), distribution(1, 1 - p) {
 	this->p = p;
 	this->q = 1 - p;
 	this->total = size.width * size.height * size.deep;

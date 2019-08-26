@@ -21,7 +21,8 @@ protected:
 	std::vector<Volume> dX;
 
 public:
-	NetworkLayer(int inputWidth, int inputHeight, int inputDeep, int outputWidth, int outputHeight, int outputDeep);
+	NetworkLayer(VolumeSize inputSize, int outputWidth, int outputHeight, int outputDeep);
+	NetworkLayer(VolumeSize size);
 
 	VolumeSize GetOutputSize() const; // получение размера выхода слоя
 
@@ -47,14 +48,24 @@ public:
 	virtual void ZeroGradient(int index) { throw std::runtime_error("Layer has no trainable parameters"); } // обнуление градиента веса по индексу
 };
 
-NetworkLayer::NetworkLayer(int inputWidth, int inputHeight, int inputDeep, int outputWidth, int outputHeight, int outputDeep) {
-	inputSize.width = inputWidth;
-	inputSize.height = inputHeight;
-	inputSize.deep = inputDeep;
+NetworkLayer::NetworkLayer(VolumeSize inputSize, int outputWidth, int outputHeight, int outputDeep) {
+	this->inputSize.width = inputSize.width;
+	this->inputSize.height = inputSize.height;
+	this->inputSize.deep = inputSize.deep;
 
 	outputSize.width = outputWidth;
 	outputSize.height = outputHeight;
 	outputSize.deep = outputDeep;
+}
+
+NetworkLayer::NetworkLayer(VolumeSize size) {
+	inputSize.width = size.width;
+	inputSize.height = size.height;
+	inputSize.deep = size.deep;
+
+	outputSize.width = size.width;
+	outputSize.height = size.height;
+	outputSize.deep = size.deep;
 }
 
 // получение размера выхода слоя

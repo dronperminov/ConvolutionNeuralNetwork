@@ -24,7 +24,7 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-MaxPoolingLayer::MaxPoolingLayer(VolumeSize size, int scale) : NetworkLayer(size.width, size.height, size.deep, size.width / scale, size.height / scale, size.deep) {
+MaxPoolingLayer::MaxPoolingLayer(VolumeSize size, int scale) : NetworkLayer(size, size.width / scale, size.height / scale, size.deep) {
 	if (size.width % scale != 0 || size.height % scale != 0)
 		throw std::runtime_error("Unable creating maxpool layer with this scale");
 

@@ -22,7 +22,7 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-ELULayer::ELULayer(VolumeSize size, double alpha) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+ELULayer::ELULayer(VolumeSize size, double alpha) : NetworkLayer(size) {
 	this->alpha = alpha;
 	total = size.width * size.height * size.deep;
 

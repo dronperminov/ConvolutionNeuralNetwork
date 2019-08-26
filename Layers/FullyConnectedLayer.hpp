@@ -66,7 +66,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type) : NetworkLayer(size.height, size.width, size.deep, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
 	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 
@@ -82,7 +82,7 @@ FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std
 	InitWeights();
 }
 
-FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(size.height, size.width, size.deep, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
 	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 

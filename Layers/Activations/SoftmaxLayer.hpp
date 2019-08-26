@@ -21,7 +21,7 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-SoftmaxLayer::SoftmaxLayer(VolumeSize size) : NetworkLayer(size.width, size.height, size.deep, size.width, size.height, size.deep) {
+SoftmaxLayer::SoftmaxLayer(VolumeSize size) : NetworkLayer(size) {
 	total = size.width * size.height * size.deep;
 
 	name = "softmax";
