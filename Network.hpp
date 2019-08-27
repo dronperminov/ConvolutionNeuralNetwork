@@ -13,6 +13,7 @@
 #include "Layers/FullyConnectedLayer.hpp"
 
 #include "Layers/ResidualLayer.hpp"
+#include "Layers/InceptionLayer.hpp"
 
 #include "Layers/DropoutLayer.hpp"
 #include "Layers/BatchNormalizationLayer.hpp"
@@ -179,6 +180,14 @@ void Network::AddLayer(const std::string& layerConf) {
 		std::string features = parser.Get("features");
 
 		layer = new ResidualLayer(size, std::stod(features));
+	}
+	else if (parser["inception"]) {
+		if (!parser["features"])
+			throw std::runtime_error("Unable to add inception layer. Features are not set");
+
+		std::string features = parser.Get("features");
+
+		layer = new InceptionLayer(size, std::stod(features));
 	}
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size);
@@ -457,6 +466,12 @@ void Network::Load(const std::string &path, bool verbose) {
 			f >> features;
 
 			layer = new ResidualLayer(size, features, f);
+		}
+		else if (layerType == "inception") {
+			int features;
+			f >> features;
+
+			layer = new InceptionLayer(size, features, f);
 		}
 		else if (layerType == "dropout") {
 			double p;
