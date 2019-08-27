@@ -17,24 +17,30 @@ int main() {
 
 	int trainCount = 60000; // число обучающих примеров (вся выборка)
 
-	double learningRate = 0.0015; // скорость обучения
+	double learningRate = 0.001; // скорость обучения
 	int batchSize = 64; // размер батча
-	int maxEpochs = 50; // число эпох обучения
+	int maxEpochs = 100; // число эпох обучения
 
 	Network network(width, height, deep);
 	
-	network.AddLayer("conv filter_size=5 filters=16");
+	network.AddLayer("conv filter_size=3 filters=16");
+	network.AddLayer("batchnormalization2D");
+	network.AddLayer("conv filter_size=3 filters=16");
+	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
-	network.AddLayer("dropout p=0.2");
+	network.AddLayer("dropout p=0.4");
 
-	network.AddLayer("conv filter_size=5 filters=32");
+	network.AddLayer("conv filter_size=3 filters=32");
+	network.AddLayer("batchnormalization2D");
+	network.AddLayer("conv filter_size=3 filters=32");
+	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
-	network.AddLayer("dropout p=0.2");
+	network.AddLayer("dropout p=0.4");
 
 	network.AddLayer("fullconnected outputs=128");
 	network.AddLayer("batchnormalization");
 	network.AddLayer("relu");
-	network.AddLayer("dropout p=0.2");
+	network.AddLayer("dropout p=0.4");
 
 	network.AddLayer("fullconnected outputs=10");
 	network.AddLayer("softmax");
