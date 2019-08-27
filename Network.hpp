@@ -43,6 +43,8 @@ class Network {
 	VolumeSize outputSize; // выходной размер сети
 
 	std::vector<NetworkLayer*> layers; // слои сети
+	std::vector<bool> isLearnable; // обучаемы ли слои
+
 	std::vector<std::vector<Volume>> inputBatches;
 	std::vector<std::vector<Volume>> outputBatches;
 
@@ -67,6 +69,8 @@ public:
 
 	void Save(const std::string &path, bool verbose = true); // сохранение сети в файл
 	void Load(const std::string &path, bool verbose = true); // загрузка сети из файла
+
+	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
 
 	void GradientChecking(const std::vector<Volume> &input, const std::vector<Volume> &output, LossType lossType); // численная проверка расчёта градиентов
 };
@@ -241,6 +245,8 @@ void Network::AddLayer(const std::string& layerConf) {
 	}
 
 	layers.push_back(layer);
+	isLearnable.push_back(true);
+
 	outputSize = layer->GetOutputSize();
 }
 
@@ -298,7 +304,8 @@ double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vec
 
 	// обновляем высовые кожффициенты слоёв
 	for (size_t i = 0; i < layers.size(); i++)
-		layers[i]->UpdateWeights(optimizer);
+		if (isLearnable[i])
+			layers[i]->UpdateWeights(optimizer);
 
 	return loss; // возвращаем ошибку
 }
@@ -528,6 +535,7 @@ void Network::Load(const std::string &path, bool verbose) {
 			throw std::runtime_error("Invalid layer type '" + layerType + "'");
 
 		layers.push_back(layer);
+		isLearnable.push_back(true);
 	}
 
 	if (layers.size() == 0)
@@ -537,6 +545,14 @@ void Network::Load(const std::string &path, bool verbose) {
 
 	if (verbose)
 		std::cout << "CNN succesfully loaded from '" << path << "'" << std::endl;
+}
+
+// изменение обучаемости слоя
+void Network::SetLayerLearnable(int layer, bool learnable) {
+	if (layer < 0 || layer >= layers.size())
+		throw std::runtime_error("Invalid layer");
+
+	isLearnable[layer] = learnable;
 }
 
 void Network::GradientChecking(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType) {
