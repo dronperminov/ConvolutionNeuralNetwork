@@ -23,6 +23,7 @@ private:
 	std::vector<std::string> SplitByChar(const std::string s, char c = ',') const; // разбиение строки по символу
 	int GetLabelIndex(const std::string &label) const; // индекс класса
 	int GetOutputIndex(Network &network, const Volume& input) const; // получение индекса максимального аргумента
+	int GetOutputIndex(std::vector<Network> &networks, const Volume& input) const; // получение индекса максимального аргумента
 
 	Volume GetVolume(const std::vector<std::string> &args, int start = 1);
 	void ReadTrain(const std::string &trainPath, size_t maxTrainData);
@@ -32,6 +33,8 @@ public:
 	DataLoader(const std::string &trainPath, int width, int height, int deep, const std::string &labelsPath, size_t maxTrainData = 100, double scale = 255);
 
 	double Test(Network &network, const std::string &testPath, const std::string &msg, int maxCount = -1, bool verbose = false); // проверка точности предсказаний сети
+	double Test(std::vector<Network> &networks, const std::string &testPath, const std::string &msg, int maxCount = -1, bool verbose = false); // проверка точности предсказаний сети
+
 	void Predict(Network &network, const std::string &testPath, const std::string &predictPath, const std::string &msg = "id,label"); // предсказание сети
 	void PrintStats() const; // вывод статистики обучающей выборки
 };
@@ -76,6 +79,32 @@ int DataLoader::GetOutputIndex(Network &network, const Volume& input) const {
 	for (int i = 0; i < output.Deep(); i++)
 		if (output(i, 0, 0) > output(imax, 0, 0))
 			imax = i;
+
+	return imax;
+}
+
+// получение индекса максимального аргумента
+int DataLoader::GetOutputIndex(std::vector<Network> &networks, const Volume& input) const {
+	Volume output(1, 1, labels.size());
+
+	for (size_t i = 0; i < networks.size(); i++) {
+		Volume& out = networks[i].GetOutput(input);
+
+		for (int j = 0; j < labels.size(); j++)
+			output[j] += out[j];
+	}
+
+	int imax = -1;
+	double max = 0;
+
+	for (int i = 0; i < labels.size(); i++) {
+		double mean = output[i] / networks.size();
+
+		if (imax == -1 || mean > max) {
+			max = mean;
+			imax = i;
+		}
+	}
 
 	return imax;
 }
@@ -188,9 +217,71 @@ double DataLoader::Test(Network &network, const std::string &testPath, const std
 		if (label == -1)
 			throw std::runtime_error("Unknown label");
 
-
 		Volume input = GetVolume(args);
 		int index = GetOutputIndex(network, input);
+
+		total++;
+		totals[label]++;
+		matrix[label][index]++;
+
+		if (index == label) {
+			correct++;
+			corrects[label]++;
+		}
+
+		if (msg.length())
+			std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%               \r";
+	}
+
+	f.close();
+
+	if (msg.length())
+		std::cout << msg << correct << " / " << total << ": " << correct * 100.0 / total << "%            " << std::endl;
+
+	if (verbose) {
+		for (size_t i = 0; i < labels.size(); i++)
+			std::cout << labels[i] << ": " << corrects[i] << "/" << totals[i] << " - " << (100.0 * corrects[i] / totals[i]) << "%" << std::endl;
+
+		std::cout << std::endl << "Confusion matrix:" << std::endl;
+		std::cout << std::setfill(' ');
+
+		for (size_t i = 0; i < labels.size(); i++) {
+			std::cout << std::setw(10) << labels[i] << " | ";
+
+			for (size_t j = 0; j < labels.size(); j++)
+				std::cout << std::setprecision(2) << std::setw(5) << matrix[i][j] / totals[i] << " | ";
+
+			std::cout << std::endl;
+		}
+	}
+
+	return 100.0 * correct / total;
+}
+
+// проверка точности предсказаний сети
+double DataLoader::Test(std::vector<Network> &networks, const std::string &testPath, const std::string &msg, int maxCount, bool verbose) {
+	std::ifstream f(testPath.c_str());
+	std::string line;
+
+	std::getline(f, line);
+
+	int correct = 0;
+	int total = 0;
+
+	std::vector<int> corrects(labels.size(), 0);
+	std::vector<int> totals(labels.size(), 0);
+	std::vector<std::vector<double>> matrix(labels.size(), std::vector<double>(labels.size(), 0));
+
+	while (std::getline(f, line) && total != maxCount) {
+		std::vector<std::string> args = SplitByChar(line, ',');
+
+		int label = GetLabelIndex(args[0]);
+
+		if (label == -1)
+			throw std::runtime_error("Unknown label");
+
+		Volume input = GetVolume(args);
+		int index = GetOutputIndex(networks, input);
 
 		total++;
 		totals[label]++;
