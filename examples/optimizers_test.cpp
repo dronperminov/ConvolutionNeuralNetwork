@@ -106,6 +106,8 @@ int main() {
 		std::vector<double> trainAcc;
 		std::vector<double> testAcc;
 
+		srand(1);
+		
 		for (int j = 0; j < maxEpochs; j++) {
 			optimizers[i].SetEpoch(j + 1);
 
