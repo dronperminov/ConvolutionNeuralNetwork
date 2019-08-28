@@ -21,6 +21,7 @@ enum class OptimizerType {
 class Optimizer {
 	OptimizerType type; // тип оптимизатора
 	double learningRate; // скорость обучения
+	double weightDecay; // коэффициент регуляризации
 	double beta1; // параметр оптимизатора
 	double beta2; // второй параметр оптимизатора
 	double param3; // третий параметр оптимизатора
@@ -39,30 +40,32 @@ class Optimizer {
 	void UpdateAMSgrad(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для AMSgrad
 	void UpdateAdaBound(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление веса для AdaBound
 
-	Optimizer(OptimizerType type, double learningRate, double beta1 = 0, double beta2 = 0, double param3 = 0, double param4 = 0);
+	Optimizer(OptimizerType type, double learningRate, double weightDecay, double beta1 = 0, double beta2 = 0, double param3 = 0, double param4 = 0);
 
 public:
-	static Optimizer SGD(double learningRate = 0.01); // стохастический градиентный спуск
-	static Optimizer SGDm(double learningRate = 0.01, double moment = 0.9); // стохастический градиентный спуск с моментом
-	static Optimizer Adagrad(double learningRate = 0.01); // адаптивный градиент
-	static Optimizer Adadelta(double gamma = 0.9); // адаптивный градиент со скользящим средним
-	static Optimizer RMSprop(double learningRate = 0.001, double beta = 0.9); // RMSprop
-	static Optimizer NAG(double learningRate = 0.01, double mu = 0.9); // ускоренный градиент Нестерова
-	static Optimizer Adam(double learningRate = 0.001, double beta1 = 0.9, double beta2 = 0.999); // адаптивный момент
-	static Optimizer AdaMax(double learningRate = 0.002, double beta1 = 0.9, double beta2 = 0.999); // AdaMax
-	static Optimizer Nadam(double learningRate = 0.002, double beta1 = 0.9, double beta2 = 0.999); // Nadam
-	static Optimizer AMSgrad(double learningRate = 0.002, double beta1 = 0.9, double beta2 = 0.999); // AMSgrad
-	static Optimizer AdaBound(double learningRate = 0.001, double beta1 = 0.9, double beta2 = 0.999, double finalLearningRate = 0.1, double gamma = 1e-3); // AdaBound
+	static Optimizer SGD(double learningRate = 0.01, double weightDecay = 0); // стохастический градиентный спуск
+	static Optimizer SGDm(double learningRate = 0.01, double weightDecay = 0, double moment = 0.9); // стохастический градиентный спуск с моментом
+	static Optimizer Adagrad(double learningRate = 0.01, double weightDecay = 0); // адаптивный градиент
+	static Optimizer Adadelta(double weightDecay = 0, double gamma = 0.9); // адаптивный градиент со скользящим средним
+	static Optimizer RMSprop(double learningRate = 0.001, double weightDecay = 0, double beta = 0.9); // RMSprop
+	static Optimizer NAG(double learningRate = 0.01, double weightDecay = 0, double mu = 0.9); // ускоренный градиент Нестерова
+	static Optimizer Adam(double learningRate = 0.001, double weightDecay = 0, double beta1 = 0.9, double beta2 = 0.999); // адаптивный момент
+	static Optimizer AdaMax(double learningRate = 0.002, double weightDecay = 0, double beta1 = 0.9, double beta2 = 0.999); // AdaMax
+	static Optimizer Nadam(double learningRate = 0.002, double weightDecay = 0, double beta1 = 0.9, double beta2 = 0.999); // Nadam
+	static Optimizer AMSgrad(double learningRate = 0.002, double weightDecay = 0, double beta1 = 0.9, double beta2 = 0.999); // AMSgrad
+	static Optimizer AdaBound(double learningRate = 0.001, double weightDecay = 0, double beta1 = 0.9, double beta2 = 0.999, double finalLearningRate = 0.1, double gamma = 1e-3); // AdaBound
 
 	void Update(double grad, double &dw, double &dw2, double &dw3, double &w) const; // обновление весовых коэффициентов
 	void Print() const; // вывод информации об алгоритме
 
 	void SetEpoch(int epoch); // задание текущей эпохи
 	void SetLearningRate(double learningRate); // изменение скорости обучения
+	void SetWeightDecay(double weightDecay); // изменение коэффициента регуляризации
+
 	void ChangeLearningRate(double v); // изменение скорости обучения в v раз
 };
 
-Optimizer::Optimizer(OptimizerType type, double learningRate, double beta1, double beta2, double param3, double param4) {
+Optimizer::Optimizer(OptimizerType type, double learningRate, double weightDecay, double beta1, double beta2, double param3, double param4) {
 	this->type = type;
 	this->learningRate = learningRate;
 
@@ -72,61 +75,62 @@ Optimizer::Optimizer(OptimizerType type, double learningRate, double beta1, doub
 	this->param4 = param4;
 
 	this->epoch = 1;
+	this->weightDecay = weightDecay;
 }
 
 // стохастический градиентный спуск
-Optimizer Optimizer::SGD(double learningRate) {
-	return Optimizer(OptimizerType::SGD, learningRate, 0, 0);
+Optimizer Optimizer::SGD(double learningRate, double weightDecay) {
+	return Optimizer(OptimizerType::SGD, learningRate, weightDecay, 0, 0);
 }
 
 // стохастический градиентный спуск с моментом
-Optimizer Optimizer::SGDm(double learningRate, double moment) {
-	return Optimizer(OptimizerType::SGDm, learningRate, moment, 0);
+Optimizer Optimizer::SGDm(double learningRate, double weightDecay, double moment) {
+	return Optimizer(OptimizerType::SGDm, learningRate, weightDecay, moment, 0);
 }
 
 // адаптивный градиент
-Optimizer Optimizer::Adagrad(double learningRate) {
-	return Optimizer(OptimizerType::Adagrad, learningRate, 0, 0);
+Optimizer Optimizer::Adagrad(double learningRate, double weightDecay) {
+	return Optimizer(OptimizerType::Adagrad, learningRate, weightDecay, 0, 0);
 }
 
 // адаптивный градиент со скользящим средним
-Optimizer Optimizer::Adadelta(double gamma) {
-	return Optimizer(OptimizerType::Adadelta, 0, gamma, 0);
+Optimizer Optimizer::Adadelta(double weightDecay, double gamma) {
+	return Optimizer(OptimizerType::Adadelta, 0, weightDecay, gamma, 0);
 }
 
 // RMSprop
-Optimizer Optimizer::RMSprop(double learningRate, double beta) {
-	return Optimizer(OptimizerType::RMSprop, learningRate, beta, 0);
+Optimizer Optimizer::RMSprop(double learningRate, double weightDecay, double beta) {
+	return Optimizer(OptimizerType::RMSprop, learningRate, weightDecay, beta, 0);
 }
 
 // ускоренный градиент Нестерова
-Optimizer Optimizer::NAG(double learningRate, double mu) {
-	return Optimizer(OptimizerType::NAG, learningRate, mu, 0);
+Optimizer Optimizer::NAG(double learningRate, double weightDecay, double mu) {
+	return Optimizer(OptimizerType::NAG, learningRate, weightDecay, mu, 0);
 }
 
 // адаптивный момент
-Optimizer Optimizer::Adam(double learningRate, double beta1, double beta2) {
-	return Optimizer(OptimizerType::Adam, learningRate, beta1, beta2);
+Optimizer Optimizer::Adam(double learningRate, double weightDecay, double beta1, double beta2) {
+	return Optimizer(OptimizerType::Adam, learningRate, weightDecay, beta1, beta2);
 }
 
 // AdaMax
-Optimizer Optimizer::AdaMax(double learningRate, double beta1, double beta2) {
-	return Optimizer(OptimizerType::AdaMax, learningRate, beta1, beta2);
+Optimizer Optimizer::AdaMax(double learningRate, double weightDecay, double beta1, double beta2) {
+	return Optimizer(OptimizerType::AdaMax, learningRate, weightDecay, beta1, beta2);
 }
 
 // Nadam
-Optimizer Optimizer::Nadam(double learningRate, double beta1, double beta2) {
-	return Optimizer(OptimizerType::Nadam, learningRate, beta1, beta2);
+Optimizer Optimizer::Nadam(double learningRate, double weightDecay, double beta1, double beta2) {
+	return Optimizer(OptimizerType::Nadam, learningRate, weightDecay, beta1, beta2);
 }
 
 // AMSgrad
-Optimizer Optimizer::AMSgrad(double learningRate, double beta1, double beta2) {
-	return Optimizer(OptimizerType::AMSgrad, learningRate, beta1, beta2);
+Optimizer Optimizer::AMSgrad(double learningRate, double weightDecay, double beta1, double beta2) {
+	return Optimizer(OptimizerType::AMSgrad, learningRate, weightDecay, beta1, beta2);
 }
 
 // AdaBound
-Optimizer Optimizer::AdaBound(double learningRate, double beta1, double beta2, double finalLearningRate, double gamma) {
-	return Optimizer(OptimizerType::AdaBound, learningRate, beta1, beta2, finalLearningRate, gamma);
+Optimizer Optimizer::AdaBound(double learningRate, double weightDecay, double beta1, double beta2, double finalLearningRate, double gamma) {
+	return Optimizer(OptimizerType::AdaBound, learningRate, weightDecay, beta1, beta2, finalLearningRate, gamma);
 }
 
 // обновление веса для стохастического градиентного спуска
@@ -234,6 +238,8 @@ void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &dw3, d
 
 // обновление весовых коэффициентов
 void Optimizer::Update(double grad, double &dw, double &dw2, double &dw3, double &w) const {
+	w -= learningRate * weightDecay * w;
+
 	switch (type) {
 		case OptimizerType::SGD:
 			UpdateSGD(grad, dw, dw2, dw3, w);
@@ -279,6 +285,7 @@ void Optimizer::Update(double grad, double &dw, double &dw2, double &dw3, double
 			UpdateAdaBound(grad, dw, dw2, dw3, w);
 			break;
 	}
+
 }
 
 // вывод информации об алгоритме
@@ -321,6 +328,9 @@ void Optimizer::Print() const {
 	if (type != OptimizerType::Adadelta) {
 		std::cout << ", learning rate: " << learningRate;
 	}
+
+	if (weightDecay != 0)
+		std::cout << ", weight decay: " << weightDecay;
 }
 
 // задание текущей эпохи
@@ -332,6 +342,12 @@ void Optimizer::SetEpoch(int epoch) {
 void Optimizer::SetLearningRate(double learningRate) {
 	this->learningRate = learningRate;
 }
+
+// изменение коэффициента регуляризации
+void Optimizer::SetWeightDecay(double weightDecay) {
+	this->weightDecay = weightDecay;
+}
+
 
 // изменение скорости обучения в v раз
 void Optimizer::ChangeLearningRate(double v) {
