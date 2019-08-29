@@ -72,12 +72,14 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 		layer = new ResidualLayer(size, std::stod(features));
 	}
 	else if (parser["inception"]) {
-		if (!parser["features"])
+		if (!parser["fc1"] || !parser["fc3"] || !parser["fc5"])
 			throw std::runtime_error("Unable to add inception layer. Features are not set");
 
-		std::string features = parser.Get("features");
+		std::string fc1 = parser.Get("fc1");
+		std::string fc3 = parser.Get("fc3");
+		std::string fc5 = parser.Get("fc5");
 
-		layer = new InceptionLayer(size, std::stod(features));
+		layer = new InceptionLayer(size, std::stod(fc1), std::stod(fc3), std::stod(fc5));
 	}
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size);
@@ -169,10 +171,10 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		layer = new ResidualLayer(size, features, f);
 	}
 	else if (layerType == "inception") {
-		int features;
-		f >> features;
+		int fc1, fc3, fc5;
+		f >> fc1 >> fc3 >> fc5;
 
-		layer = new InceptionLayer(size, features, f);
+		layer = new InceptionLayer(size, fc1, fc3, fc5, f);
 	}
 	else if (layerType == "dropout") {
 		double p;
