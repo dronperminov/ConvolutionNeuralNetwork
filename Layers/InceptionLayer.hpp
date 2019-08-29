@@ -11,13 +11,15 @@
 
 class InceptionLayer : public NetworkLayer {
 	std::vector<NetworkLayer*> convs;
+	std::vector<int> fc;
+
 	int totalOutput;
 	int totalInput;
 	size_t last;
 
 public:
-	InceptionLayer(VolumeSize size, int features);
-	InceptionLayer(VolumeSize size, int features, std::ifstream &f);
+	InceptionLayer(VolumeSize size, int fc1, int fc3, int fc5);
+	InceptionLayer(VolumeSize size, int fc1, int fc3, int fc5, std::ifstream &f);
 
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
@@ -35,21 +37,29 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-InceptionLayer::InceptionLayer(VolumeSize size, int features) : NetworkLayer(size, size.width, size.height, 3*features) {
-	convs.push_back(new ConvLayer(size, features, 1, 0, 1));
-	convs.push_back(new ConvLayer(size, features, 3, 1, 1));
-	convs.push_back(new ConvLayer(size, features, 5, 2, 1));
+InceptionLayer::InceptionLayer(VolumeSize size, int fc1, int fc3, int fc5) : NetworkLayer(size, size.width, size.height, fc1 + fc3 + fc5) {
+	convs.push_back(new ConvLayer(size, fc1, 1, 0, 1));
+	convs.push_back(new ConvLayer(size, fc3, 3, 1, 1));
+	convs.push_back(new ConvLayer(size, fc5, 5, 2, 1));
+
+	fc.push_back(fc1);
+	fc.push_back(fc3);
+	fc.push_back(fc5);
 
 	totalInput = size.width * size.height * size.deep;
-	totalOutput = size.width * size.height * convs.size() * features;
+	totalOutput = size.width * size.height * (fc1 + fc3 + fc5);
 
 	last = convs.size() - 1;
 
 	name = "inception";
-	info = "features: " + std::to_string(features);
+	info = "fc: 1x1:" + std::to_string(fc1) + " 3x3:" + std::to_string(fc3) + " 5x5:" + std::to_string(fc5);
 }
 
-InceptionLayer::InceptionLayer(VolumeSize size, int features, std::ifstream &f) : NetworkLayer(size, size.width, size.height, 3*features) {
+InceptionLayer::InceptionLayer(VolumeSize size, int fc1, int fc3, int fc5, std::ifstream &f) : NetworkLayer(size, size.width, size.height, fc1 + fc3 + fc5) {
+	fc.push_back(fc1);
+	fc.push_back(fc3);
+	fc.push_back(fc5);
+
 	for (int i = 0; i < 3; i++) {
 		std::string name;
 		VolumeSize blockSize;
@@ -68,12 +78,12 @@ InceptionLayer::InceptionLayer(VolumeSize size, int features, std::ifstream &f) 
 	}
 
 	totalInput = size.width * size.height * size.deep;
-	totalOutput = size.width * size.height * 3 * features;
+	totalOutput = size.width * size.height * (fc1 + fc3 + fc5);
 
 	last = convs.size() - 1;
 
 	name = "inception";
-	info = "features: " + std::to_string(features);
+	info = "fc: 1x1:" + std::to_string(fc1) + " 3x3:" + std::to_string(fc3) + " 5x5:" + std::to_string(fc5);
 }
 
 // получение количества обучаемых параметров
@@ -88,7 +98,7 @@ int InceptionLayer::GetTrainableParams() const {
 
 // прямое распространение
 void InceptionLayer::Forward(const std::vector<Volume> &X) {
-	int deep = outputSize.deep / convs.size();
+	int current = 0;
 
 	for (size_t index = 0; index < convs.size(); index++) {
 		convs[index]->Forward(X);
@@ -99,26 +109,29 @@ void InceptionLayer::Forward(const std::vector<Volume> &X) {
 		for (size_t batchIndex = 0; batchIndex < X.size(); batchIndex++)
 			for (int i = 0; i < outputSize.height; i++)
 					for (int j = 0; j < outputSize.width; j++)
-						for (int k = 0; k < deep; k++)
-							output[batchIndex](index * deep + k, i, j) = convOutput[batchIndex](k, i, j);
+						for (int k = 0; k < fc[index]; k++)
+							output[batchIndex](current + k, i, j) = convOutput[batchIndex](k, i, j);
+
+		current += fc[index];
 	}
 }
 
 // обратное распространение
 void InceptionLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
-	int deep = outputSize.deep / convs.size();
+	int current = 0;
 
 	for (size_t index = 0; index < convs.size(); index++) {
-		std::vector<Volume> douts(dout.size(), Volume(outputSize.width, outputSize.height, deep));
+		std::vector<Volume> douts(dout.size(), Volume(outputSize.width, outputSize.height, fc[index]));
 
 		#pragma omp parallel for collapse(4)
 		for (size_t batchIndex = 0; batchIndex < dout.size(); batchIndex++)
 			for (int i = 0; i < outputSize.height; i++)
 				for (int j = 0; j < outputSize.width; j++)
-					for (int k = 0; k < deep; k++)
-						douts[batchIndex](k, i, j) = dout[batchIndex](index * deep + k, i, j);
+					for (int k = 0; k < fc[index]; k++)
+						douts[batchIndex](k, i, j) = dout[batchIndex](current + k, i, j);
 
 		convs[index]->Backward(douts, X, calc_dX);
+		current += fc[index];
 	}
 
 	if (!calc_dX)
@@ -150,7 +163,7 @@ void InceptionLayer::ResetCache() {
 
 // сохранение слоя в файл
 void InceptionLayer::Save(std::ofstream &f) const {
-	f << "inception " << inputSize << " " << outputSize.deep << " " << convs.size() << std::endl;
+	f << "inception " << inputSize << " " << outputSize.deep << " " << fc[0] << " " << fc[1] << " " << fc[2] << std::endl;
 
 	for (size_t i = 0; i < convs.size(); i++)
 		convs[i]->Save(f);
