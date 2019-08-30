@@ -25,6 +25,8 @@
 #include "Activations/SoftplusLayer.hpp"
 #include "Activations/SoftmaxLayer.hpp"
 
+#include "NetworkBlock.hpp"
+
 #include "../Entities/ArgParser.hpp"
 
 // создание слоя по описанию
@@ -193,6 +195,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> momentum;
 
 		layer = new BatchNormalization2DLayer(size, momentum, f);
+	}
+	else if (layerType == "block") {
+		std::string type;
+		f >> type;
+
+		layer = new NetworkBlock(size, type, f);
 	}
 	else if (layerType == "sigmoid") {
 		layer = new SigmoidLayer(size);

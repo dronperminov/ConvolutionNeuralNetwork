@@ -94,3 +94,6 @@ void NetworkLayer::SetBatchSize(int batchSize) {
 	output = std::vector<Volume>(batchSize, Volume(outputSize));
 	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }
+
+// загрузка слоя из файла
+NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifstream &f);

@@ -38,6 +38,7 @@ public:
 	Network(const std::string &path);
 
 	void AddLayer(const std::string& layerConf); // добавление слоя по текстовому описанию
+	void AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string mergeType = "sum"); // добавление блока
 	void PrintConfig() const; // вывод конфигурации
 
 	Volume& GetOutput(const Volume& input); // получение выхода сети
@@ -126,6 +127,34 @@ void Network::AddLayer(const std::string& layerConf) {
 	isLearnable.push_back(true);
 
 	outputSize = layer->GetOutputSize();
+}
+
+// добавление блока
+void Network::AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string type) {
+	VolumeSize size = layers.size() == 0 ? inputSize : layers[layers.size() - 1]->GetOutputSize();
+	NetworkBlock *block = new NetworkBlock(size, type);
+
+	for (size_t i = 0; i < blockConf.size(); i++) {
+		std::vector<std::string> conf = blockConf[i];
+		block->AddBlock();
+
+		NetworkLayer* prevLayer = nullptr;
+
+		for (size_t j = 0; j < conf.size(); j++) {
+			VolumeSize layerSize = prevLayer == nullptr ? size : prevLayer->GetOutputSize();
+			NetworkLayer *blockLayer = CreateLayer(layerSize, conf[j]);
+			prevLayer = blockLayer;
+
+			block->AddLayer(i, blockLayer);
+		}
+	}
+
+	block->Compile();
+
+	layers.push_back(block);
+	isLearnable.push_back(true);
+
+	outputSize = block->GetOutputSize();
 }
 
 // вывод конфигурации
