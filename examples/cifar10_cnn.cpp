@@ -6,7 +6,7 @@
 using namespace std;
 
 int main() {
-	string dir = "../dataset/"; // путь к папке с файлами
+	string dir = "C:/Users/Andrew/Desktop/ImageRecognition/cifar10/";//"../dataset/"; // путь к папке с файлами
 	string train = dir + "cifar10_train.csv"; // обучающая выборка
 	string test = dir + "cifar10_test.csv"; // тестовая выборка
 	string labels = dir + "cifar10.txt"; // файл с классами
@@ -28,25 +28,20 @@ int main() {
 	network.AddLayer("conv filter_size=3 filters=32 P=1");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
-	network.AddLayer("dropout p=0.4");
-
-	network.AddLayer("conv filter_size=3 filters=32 P=1");
-	network.AddLayer("batchnormalization2D");
-	network.AddLayer("conv filter_size=3 filters=32 P=1");
-	network.AddLayer("batchnormalization2D");
-	network.AddLayer("maxpool");
-	network.AddLayer("dropout p=0.4");
+	network.AddLayer("dropout p=0.2");
 
 	network.AddLayer("conv filter_size=3 filters=64 P=1");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("conv filter_size=3 filters=64 P=1");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
-	network.AddLayer("dropout p=0.4");
+	network.AddLayer("dropout p=0.3");
 
-	network.AddLayer("fullconnected outputs=128");
-	network.AddLayer("batchnormalization");
-	network.AddLayer("relu");
+	network.AddLayer("conv filter_size=3 filters=128 P=1");
+	network.AddLayer("batchnormalization2D");
+	network.AddLayer("conv filter_size=3 filters=128 P=1");
+	network.AddLayer("batchnormalization2D");
+	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
 
 	network.AddLayer("fullconnected outputs=10");
@@ -61,10 +56,10 @@ int main() {
 	double bestAcc = 0;
 
 	// запускаем обучение с проверкой и сохранением наилучших сетей
-	for (int i = 0; i < maxEpochs; i++) {
-		cout << (i + 1) << ":" << endl;
+	for (int epoch = 1; epoch <= maxEpochs; epoch++) {
+		cout << epoch << " / " << maxEpochs << ":" << endl;
 
-		optimizer.SetEpoch(i + 1);
+		optimizer.SetEpoch(epoch);
 		
 		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy); // обучаем в течение одной эпохи
 		cout << "loss: " << loss << endl;
@@ -84,5 +79,8 @@ int main() {
 
 		cout << "Best: " << bestAcc << endl << endl; // выводим лучшую точность
 		cout << "============================================================================================" << endl;
+
+		if (epoch % 10 == 0)
+			optimizer.ChangeLearningRate(0.8);
 	}
 }
