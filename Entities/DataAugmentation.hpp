@@ -10,6 +10,8 @@ class DataAugmentation {
 	double brightnessMin;
 	double brightnessMax;
 
+	double rotation;
+
 public:
 	DataAugmentation(const std::string &config);
 	Volume Make(const Volume &volume);
@@ -20,10 +22,12 @@ DataAugmentation::DataAugmentation(const std::string &config) {
 
 	verticalShift = stod(parser.Get("shift-y", "0"));
 	horizontalShift = stod(parser.Get("shift-x", "0"));
-	fillValue = stod(parser.Get("fill"));
+	fillValue = stod(parser.Get("fill", "0"));
 
 	brightnessMin = stod(parser.Get("br-min", "1"));
 	brightnessMax = stod(parser.Get("br-max", "1"));
+
+	rotation = stod(parser.Get("rotate", "0")) / 180 * M_PI;
 
 	if (verticalShift < 0 || verticalShift > 1)
 		throw std::runtime_error("Vertical shift must in [0, 1]");
@@ -43,20 +47,30 @@ Volume DataAugmentation::Make(const Volume &volume) {
 	int shiftHori = volume.Height() * horizontalShift * (-1 + rand() * 2.0 / RAND_MAX);
 	
 	double brightnessScale = brightnessMin + rand() * (brightnessMax - brightnessMin) / RAND_MAX;
+	double deg = rotation * (-1 + rand() * 2.0 / RAND_MAX);
 
-	#pragma omp parallel for
+	double c = cos(deg);
+	double s = sin(deg);
+
+	double w = size.width / 2.0;
+	double h = size.height / 2.0;
+
+	#pragma omp parallel for collapse(3)
 	for (int d = 0; d < size.deep; d++) {
 		for (int i = 0; i < size.height; i++) {
 			for (int j = 0; j < size.width; j++) {
-				int i1 = i + shiftVert;
-				int j1 = j + shiftHori;
+				int x = j + shiftHori - w;
+				int y = i + shiftVert - h;
 
-				if (i1 >= 0 && j1 >= 0 && i1 < size.height && j1 < size.width)
+				int i1 = x * s + y * c + h;
+				int j1 = x * c - y * s + w;
+
+				if (i1 >= 0 && j1 >= 0 && i1 < size.height && j1 < size.width) {
 					result(d, i, j) = volume(d, i1, j1) * brightnessScale;
-				else if (fillValue != -1)
+				}
+				else {
 					result(d, i, j) = fillValue;
-				else
-					result(d, i, j) = volume(d, i, j) * brightnessScale;
+				}
 			}
 		}
 	}
