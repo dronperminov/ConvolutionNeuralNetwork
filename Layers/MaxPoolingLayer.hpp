@@ -16,8 +16,6 @@ class MaxPoolingLayer : public NetworkLayer {
 public:
 	MaxPoolingLayer(VolumeSize size, int scale = 2);
 
-	int GetTrainableParams() const; // получение количество обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -41,11 +39,6 @@ MaxPoolingLayer::MaxPoolingLayer(VolumeSize size, int scale) : NetworkLayer(size
 
 	for (int i = 0; i < size.width; i++)
 		dj[i] = i / scale;
-}
-
-// получение количество обучаемых параметров
-int MaxPoolingLayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

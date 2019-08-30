@@ -13,8 +13,6 @@ class ReLULayer : public NetworkLayer {
 public:
 	ReLULayer(VolumeSize size);
 
-	int GetTrainableParams() const; // получение количества обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -26,11 +24,6 @@ ReLULayer::ReLULayer(VolumeSize size) : NetworkLayer(size) {
 
 	name = "relu";
 	info = "";
-}
-
-// получение количества обучаемых параметров
-int ReLULayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

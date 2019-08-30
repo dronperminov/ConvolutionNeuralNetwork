@@ -16,8 +16,6 @@ class AveragePoolingLayer : public NetworkLayer {
 public:
 	AveragePoolingLayer(VolumeSize size, int scale = 2);
 
-	int GetTrainableParams() const; // получение количество обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -41,11 +39,6 @@ AveragePoolingLayer::AveragePoolingLayer(VolumeSize size, int scale) : NetworkLa
 
 	for (int i = 0; i < size.width; i++)
 		dj[i] = i / scale;
-}
-
-// получение количество обучаемых параметров
-int AveragePoolingLayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

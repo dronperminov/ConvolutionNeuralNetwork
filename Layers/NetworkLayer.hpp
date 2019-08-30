@@ -31,9 +31,9 @@ public:
 
 	void PrintConfig() const;
 	
-	virtual int GetTrainableParams() const = 0; // получение количества обучаемых параметров
+	virtual int GetTrainableParams() const; // получение количества обучаемых параметров
 
-	virtual void ForwardOutput(const std::vector<Volume> &X) { Forward(X); }; // прямое распространение
+	virtual void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
 	virtual void Forward(const std::vector<Volume> &X) = 0; // прямое распространение
 	virtual void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) = 0; // обратное распространение
 	virtual void UpdateWeights(const Optimizer &optimizer) {} // обновление весовых коэффициентов
@@ -81,12 +81,23 @@ std::vector<Volume>& NetworkLayer::GetDeltas() {
 	return dX;
 }
 
+// вывод параметров слоя
 void NetworkLayer::PrintConfig() const {
 	std::cout << "| " << std::left << std::setw(14) << name << " | ";
 	std::cout << std::right << std::setw(12) << inputSize.ToString() << " | ";
 	std::cout << std::setw(13) << outputSize.ToString() << " | ";
 	std::cout << std::setw(12) << GetTrainableParams() << " | ";
 	std::cout << info << std::endl; 
+}
+
+// получение количества обучаемых параметров
+int NetworkLayer::GetTrainableParams() const {
+	return 0;
+}
+
+// прямое распространение
+void NetworkLayer::ForwardOutput(const std::vector<Volume> &X) {
+	Forward(X);
 }
 
 // установка размера батча

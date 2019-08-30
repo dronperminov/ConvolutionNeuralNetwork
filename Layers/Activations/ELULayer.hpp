@@ -14,8 +14,6 @@ class ELULayer : public NetworkLayer {
 public:
 	ELULayer(VolumeSize size, double alpha);
 
-	int GetTrainableParams() const; // получение количества обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -28,11 +26,6 @@ ELULayer::ELULayer(VolumeSize size, double alpha) : NetworkLayer(size) {
 
 	name = "elu";
 	info = "alpha: " + std::to_string(alpha);
-}
-
-// получение количества обучаемых параметров
-int ELULayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

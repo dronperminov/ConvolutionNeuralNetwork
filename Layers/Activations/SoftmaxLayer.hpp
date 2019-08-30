@@ -13,8 +13,6 @@ class SoftmaxLayer : public NetworkLayer {
 public:
 	SoftmaxLayer(VolumeSize size);
 
-	int GetTrainableParams() const; // получение количества обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -26,11 +24,6 @@ SoftmaxLayer::SoftmaxLayer(VolumeSize size) : NetworkLayer(size) {
 
 	name = "softmax";
 	info = "";
-}
-
-// получение количества обучаемых параметров
-int SoftmaxLayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

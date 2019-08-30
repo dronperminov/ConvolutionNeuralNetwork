@@ -19,8 +19,6 @@ class DropoutLayer : public NetworkLayer {
 public:
 	DropoutLayer(VolumeSize size, double p);
 
-	int GetTrainableParams() const; // получение количества обучаемых параметров
-
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
@@ -35,11 +33,6 @@ DropoutLayer::DropoutLayer(VolumeSize size, double p) : NetworkLayer(size), dist
 
 	name = "dropout";
 	info = "p: " + std::to_string(p);
-}
-
-// получение количество обучаемых параметров
-int DropoutLayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение

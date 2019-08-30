@@ -13,8 +13,6 @@ class SwishLayer : public NetworkLayer {
 public:
 	SwishLayer(VolumeSize size);
 
-	int GetTrainableParams() const; // получение количества обучаемых параметров
-
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
 
@@ -26,11 +24,6 @@ SwishLayer::SwishLayer(VolumeSize size) : NetworkLayer(size) {
 
 	name = "swish";
 	info = "";
-}
-
-// получение количества обучаемых параметров
-int SwishLayer::GetTrainableParams() const {
-	return 0;
 }
 
 // прямое распространение
