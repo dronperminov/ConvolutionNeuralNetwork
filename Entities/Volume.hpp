@@ -50,6 +50,8 @@ public:
 	int Height() const; // получение высоты
 	int Width() const; // получение ширины
 
+	VolumeSize GetSize() const; // получение размера
+
 	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
 
 	friend std::ostream& operator<<(std::ostream& os, const Volume &volume);
@@ -110,6 +112,11 @@ int Volume::Height() const {
 // получение ширины
 int Volume::Width() const {
 	return size.width;
+}
+
+// получение размера
+VolumeSize Volume::GetSize() const {
+	return size;
 }
 
 // заполнение случайными числами

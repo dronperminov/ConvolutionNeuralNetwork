@@ -8,6 +8,7 @@
 
 #include "Layers/Layers.hpp"
 
+#include "Entities/DataAugmentation.hpp"
 #include "Entities/ArgParser.hpp"
 #include "Entities/LossFunction.hpp"
 #include "Entities/TimeSpan.hpp"
@@ -27,7 +28,7 @@ class Network {
 	std::vector<std::vector<Volume>> outputBatches;
 
 	std::vector<Volume>& Forward(const std::vector<Volume> &input);
-	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize);
+	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize, const std::string augmentation = "");
 	void SetBatchSize(int batchSize); // установка размера батча
 	void ResetCache(); // сброс промежуточных данных
 
@@ -42,7 +43,7 @@ public:
 	void PrintConfig() const; // вывод конфигурации
 
 	Volume& GetOutput(const Volume& input); // получение выхода сети
-	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType); // обучение сети
+	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation = ""); // обучение сети
 	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType); // получение ошибки на заданной выборке без изменения весовых коэффициентов
 	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType); // поиск оптимальной скорости обучения
 
@@ -75,7 +76,7 @@ std::vector<Volume>& Network::Forward(const std::vector<Volume> &input) {
 }
 
 // инициализация индексов батчей
-void Network::InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize) {
+void Network::InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize, const std::string augmentation) {
 	// формируем индексы для обучающего множества
 	size_t total = inputData.size();
 	std::vector<int> indexes;
@@ -91,18 +92,37 @@ void Network::InitBatches(const std::vector<Volume> &inputData, const std::vecto
 	inputBatches.clear();
 	outputBatches.clear();
 
-	for (size_t index = 0; index < total; index += batchSize) {
-		std::vector<Volume> inputBatch;
-		std::vector<Volume> outputBatch;
+	if (augmentation != "") {
+		DataAugmentation generator(augmentation);
 
-		// формируем индексы батча
-		for (size_t i = 0; i < batchSize && index + i < total; i++) {
-			inputBatch.push_back(inputData[indexes[index + i]]);
-			outputBatch.push_back(outputData[indexes[index + i]]);
+		for (size_t index = 0; index < total; index += batchSize) {
+			std::vector<Volume> inputBatch;
+			std::vector<Volume> outputBatch;
+
+			// формируем индексы батча
+			for (size_t i = 0; i < batchSize && index + i < total; i++) {
+				inputBatch.push_back(generator.Make(inputData[indexes[index + i]]));
+				outputBatch.push_back(outputData[indexes[index + i]]);
+			}
+
+			inputBatches.push_back(inputBatch);
+			outputBatches.push_back(outputBatch);
 		}
+	}
+	else {
+		for (size_t index = 0; index < total; index += batchSize) {
+			std::vector<Volume> inputBatch;
+			std::vector<Volume> outputBatch;
 
-		inputBatches.push_back(inputBatch);
-		outputBatches.push_back(outputBatch);
+			// формируем индексы батча
+			for (size_t i = 0; i < batchSize && index + i < total; i++) {
+				inputBatch.push_back(inputData[indexes[index + i]]);
+				outputBatch.push_back(outputData[indexes[index + i]]);
+			}
+
+			inputBatches.push_back(inputBatch);
+			outputBatches.push_back(outputBatch);
+		}
 	}
 }
 
@@ -218,12 +238,12 @@ double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vec
 }
 
 // обучение сети
-double Network::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType) {
+double Network::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation) {
 	LossFunction E(lossType); // создаём функцию ошибки
 	double loss = 0;
 
 	for (size_t epoch = 1; epoch <= epochs; epoch++) {
-		InitBatches(inputData, outputData, batchSize);
+		InitBatches(inputData, outputData, batchSize, augmentation);
 		SetBatchSize(batchSize);
 		ResetCache();
 
