@@ -11,6 +11,8 @@
 #include "InceptionLayer.hpp"
 
 #include "DropoutLayer.hpp"
+#include "GaussDropoutLayer.hpp"
+#include "GaussNoiseLayer.hpp"
 #include "BatchNormalizationLayer.hpp"
 #include "BatchNormalization2DLayer.hpp"
 
@@ -120,6 +122,16 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 
 		layer = new DropoutLayer(size, std::stod(p));
 	}
+	else if (parser["gaussdropout"]) {
+		std::string p = parser.Get("p", "0.5");
+
+		layer = new GaussDropoutLayer(size, std::stod(p));
+	}
+	else if (parser["gaussnoise"]) {
+		std::string stddev = parser.Get("stddev", "0.5");
+
+		layer = new GaussNoiseLayer(size, std::stod(stddev));
+	}
 	else if (parser["batchnormalization"]) {
 		std::string momentum = parser.Get("momentum", "0.9");
 
@@ -183,6 +195,18 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> p;
 
 		layer = new DropoutLayer(size, p);
+	}
+	else if (layerType == "gaussdropout") {
+		double p;
+		f >> p;
+
+		layer = new GaussDropoutLayer(size, p);
+	}
+	else if (layerType == "gaussnoise") {
+		double stddev;
+		f >> stddev;
+
+		layer = new GaussNoiseLayer(size, stddev);
 	}
 	else if (layerType == "batchnormalization") {
 		double momentum;
