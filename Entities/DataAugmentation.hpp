@@ -20,14 +20,30 @@ public:
 DataAugmentation::DataAugmentation(const std::string &config) {
 	ArgParser parser(config);
 
-	verticalShift = stod(parser.Get("shift-y", "0"));
-	horizontalShift = stod(parser.Get("shift-x", "0"));
-	fillValue = stod(parser.Get("fill", "0"));
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
 
-	brightnessMin = stod(parser.Get("br-min", "1"));
-	brightnessMax = stod(parser.Get("br-max", "1"));
-
-	rotation = stod(parser.Get("rotate", "0")) / 180 * M_PI;
+		if (arg == "shift-y") {
+			verticalShift = stod(parser.Get("shift-y", "0"));
+		}
+		else if (arg == "shift-x") {
+			horizontalShift = stod(parser.Get("shift-x", "0"));
+		}
+		else if (arg == "fill") {
+			fillValue = stod(parser.Get("fill", "0"));
+		}
+		else if (arg == "br-min") {
+			brightnessMin = stod(parser.Get("br-min", "1"));
+		}
+		else if (arg == "br-max") {
+			brightnessMax = stod(parser.Get("br-max", "1"));
+		}
+		else if (arg == "rotate") {
+			rotation = stod(parser.Get("rotate", "0")) / 180 * M_PI;
+		}
+		else
+			throw std::runtime_error("Invalid data augmentation argument '" + arg + "'");
+	}
 
 	if (verticalShift < 0 || verticalShift > 1)
 		throw std::runtime_error("Vertical shift must in [0, 1]");
@@ -43,8 +59,8 @@ Volume DataAugmentation::Make(const Volume &volume) {
 	VolumeSize size = volume.GetSize();
 	Volume result(size); // создаём результирующий объём
 
-	int shiftVert = volume.Width() * verticalShift * (-1 + rand() * 2.0 / RAND_MAX);
-	int shiftHori = volume.Height() * horizontalShift * (-1 + rand() * 2.0 / RAND_MAX);
+	int shiftVert = size.width * verticalShift * (-1 + rand() * 2.0 / RAND_MAX);
+	int shiftHori = size.height * horizontalShift * (-1 + rand() * 2.0 / RAND_MAX);
 	
 	double brightnessScale = brightnessMin + rand() * (brightnessMax - brightnessMin) / RAND_MAX;
 	double deg = rotation * (-1 + rand() * 2.0 / RAND_MAX);

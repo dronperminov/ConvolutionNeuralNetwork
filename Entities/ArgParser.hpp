@@ -13,7 +13,10 @@ class ArgParser {
 public:
 	ArgParser(const std::string& s); // создание из строки
 
+	size_t size() const; // получение количества аргументов
+
 	bool operator[](const std::string& key) const; // проверка наличия аргумента
+	std::string operator[](int index) const; // получение имени ключа по индексу
 	std::string Get(const std::string& key, const std::string& def = "") const; // получение значения аргумента
 };
 
@@ -61,9 +64,27 @@ ArgParser::ArgParser(const std::string& s) {
 	}
 }
 
+// получение количества аргументов
+size_t ArgParser::size() const {
+	return args.size();
+}
+
 // проверка наличия аргумента
 bool ArgParser::operator[](const std::string& key) const {
 	return args.find(key) != args.end();
+}
+
+// получение имени ключа по индексу
+std::string ArgParser::operator[](int index) const {
+	if (index < 0 || index >= args.size())
+		throw std::runtime_error("Invalid index");
+
+	std::map<std::string, std::string>::const_iterator it = args.begin();
+
+	for (int i = 0; i < index; i++)
+		it++;
+
+	return it->first;
 }
 
 // получение значения аргумента
