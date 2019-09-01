@@ -41,12 +41,13 @@ public:
 	void AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string mergeType = "sum"); // добавление блока
 	void PrintConfig() const; // вывод конфигурации
 
+	VolumeSize GetOutputSize() const; // получение размера выхода сети
 	Volume& GetOutput(const Volume& input); // получение выхода сети
 	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation = ""); // обучение сети
 	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType); // получение ошибки на заданной выборке без изменения весовых коэффициентов
 	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType); // поиск оптимальной скорости обучения
 
-	void Save(const std::string &path, bool verbose = true); // сохранение сети в файл
+	void Save(const std::string &path, bool verbose = true) const; // сохранение сети в файл
 	void Load(const std::string &path, bool verbose = true); // загрузка сети из файла
 
 	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
@@ -194,6 +195,11 @@ void Network::PrintConfig() const {
 	std::cout << std::endl;
 }
 
+// получение размера выхода сети
+VolumeSize Network::GetOutputSize() const {
+	return outputSize;
+}
+
 // получение выхода сети
 Volume& Network::GetOutput(const Volume& input) {
 	SetBatchSize(1);
@@ -335,7 +341,7 @@ void Network::LRFind(const std::string &path, const std::vector<Volume> &inputDa
 }
 
 // сохранение сети в файл
-void Network::Save(const std::string &path, bool verbose) {
+void Network::Save(const std::string &path, bool verbose) const {
 	std::ofstream f(path); // создаём файл для сети
 
 	f << inputSize.width << " " << inputSize.height << " " << inputSize.deep << std::endl; // записываем размер входа
@@ -376,7 +382,7 @@ void Network::Load(const std::string &path, bool verbose) {
 	outputSize = layers[layers.size() - 1]->GetOutputSize();
 
 	if (verbose)
-		std::cout << "CNN succesfully loaded from '" << path << "'" << std::endl;
+		std::cout << "Network succesfully loaded from '" << path << "'" << std::endl;
 }
 
 // изменение обучаемости слоя

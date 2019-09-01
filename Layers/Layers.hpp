@@ -3,6 +3,7 @@
 #include "NetworkLayer.hpp"
 
 #include "ConvLayer.hpp"
+#include "ConvWithoutStrideLayer.hpp"
 #include "MaxPoolingLayer.hpp"
 #include "AveragePoolingLayer.hpp"
 #include "FullyConnectedLayer.hpp"
@@ -46,7 +47,10 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 		std::string S = parser.Get("S", "1");
 		std::string P = parser.Get("P", "0");
 
-		layer = new ConvLayer(size, std::stoi(fc), std::stoi(fs), std::stoi(P), std::stoi(S));
+		if (S == "1")
+			layer = new ConvWithoutStrideLayer(size, std::stoi(fc), std::stoi(fs), std::stoi(P));
+		else
+			layer = new ConvLayer(size, std::stoi(fc), std::stoi(fs), std::stoi(P), std::stoi(S));
 	}
 	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"]) {
 		std::string scale = parser.Get("scale", "2");
@@ -157,7 +161,10 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		int fc, fs, P, S;
 		f >> fs >> fc >> P >> S;
 		
-		layer = new ConvLayer(size, fc, fs, P, S, f);
+		if (S == 1)
+			layer = new ConvWithoutStrideLayer(size, fc, fs, P, f);
+		else
+			layer = new ConvLayer(size, fc, fs, P, S, f);
 	}
 	else if (layerType == "maxpool" || layerType == "maxpooling") {
 		int scale;

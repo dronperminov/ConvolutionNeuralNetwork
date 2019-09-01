@@ -7,7 +7,7 @@
 
 #include "NetworkLayer.hpp"
 
-class ConvLayer : public NetworkLayer {
+class ConvWithoutStrideLayer : public NetworkLayer {
 	std::vector<Volume> W; // фильтры
 	std::vector<Volume> dW; // градиенты фильтров
 	std::vector<std::vector<Volume>> paramsW; // параметры фильтров
@@ -19,7 +19,6 @@ class ConvLayer : public NetworkLayer {
 	std::vector<Volume> df;
 
 	int P; // дополнение нулями
-	int S; // шаг свёртки
 
 	int fc; // количество фильтров
 	int fs; // размер фильтров
@@ -30,8 +29,8 @@ class ConvLayer : public NetworkLayer {
 	void LoadWeights(std::ifstream &f); // считывание весовых коэффициентов из файла
 
 public:
-	ConvLayer(VolumeSize size, int fc, int fs, int P, int S);
-	ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f);
+	ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P);
+	ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P, std::ifstream &f);
 
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
@@ -52,16 +51,15 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc) {
 	this->P = P;
-	this->S = S;
 
 	this->fc = fc;
 	this->fs = fs;
 	this->fd = size.deep;
 
 	name = "conv";
-	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P) + " S:" + std::to_string(S);
+	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P);
 
 	for (int i = 0; i < fc; i++) {
 		W.push_back(Volume(fs, fs, fd));
@@ -75,16 +73,15 @@ ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLay
 	InitWeights();
 }
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P, std::ifstream &f) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc) {
 	this->P = P;
-	this->S = S;
 
 	this->fc = fc;
 	this->fs = fs;
 	this->fd = size.deep;
 
 	name = "conv";
-	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P) + " S:" + std::to_string(S);
+	info = std::to_string(fc) + " filters [" + std::to_string(fs) + "x" + std::to_string(fs) + "x" + std::to_string(fd) + "] P:" + std::to_string(P);
 
 	for (int i = 0; i < fc; i++) {
 		W.push_back(Volume(fs, fs, fd));
@@ -99,7 +96,7 @@ ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstrea
 }
 
 // инициализация параметров для обучения
-void ConvLayer::InitParams() {
+void ConvWithoutStrideLayer::InitParams() {
 	for (int i = 0; i < OPTIMIZER_PARAMS_COUNT; i++) {
 		paramsW.push_back(std::vector<Volume>(fc, Volume(fs, fs, fd)));
 		paramsb.push_back(std::vector<double>(fc, 0));
@@ -107,7 +104,7 @@ void ConvLayer::InitParams() {
 }
 
 // инициализация весовых коэффициентов
-void ConvLayer::InitWeights() {
+void ConvWithoutStrideLayer::InitWeights() {
 	for (int index = 0; index < fc; index++) {
 		for (int i = 0; i < fs; i++)
 			for (int j = 0; j < fs; j++)
@@ -119,7 +116,7 @@ void ConvLayer::InitWeights() {
 }
 
 // считывание весовых коэффициентов из файла
-void ConvLayer::LoadWeights(std::ifstream &f) {
+void ConvWithoutStrideLayer::LoadWeights(std::ifstream &f) {
 	for (int index = 0; index < fc; index++) {
 		for (int d = 0; d < fd; d++)
 			for (int i = 0; i < fs; i++)
@@ -131,12 +128,12 @@ void ConvLayer::LoadWeights(std::ifstream &f) {
 }
 
 // получение количество обучаемых параметров
-int ConvLayer::GetTrainableParams() const {
+int ConvWithoutStrideLayer::GetTrainableParams() const {
 	return fc * (fs * fs * fd + 1);
 }
 
 // прямое распространение
-void ConvLayer::Forward(const std::vector<Volume> &X) {
+void ConvWithoutStrideLayer::Forward(const std::vector<Volume> &X) {
 	#pragma omp parallel for collapse(4)
 	for (size_t n = 0; n < X.size(); n++) {
 		for (int f = 0; f < fc; f++) {
@@ -145,13 +142,13 @@ void ConvLayer::Forward(const std::vector<Volume> &X) {
 					double sum = b[f];
 
 					for (int k = 0; k < fs; k++) {
-						int i0 = S * i + k - P;
+						int i0 = i + k - P;
 
 						if (i0 < 0 || i0 >= inputSize.height)
 							continue;
 
 						for (int l = 0; l < fs; l++) {
-							int j0 = S * j + l - P;
+							int j0 = j + l - P;
 
 							if (j0 < 0 || j0 >= inputSize.width)
 								continue;
@@ -176,28 +173,13 @@ void ConvLayer::Forward(const std::vector<Volume> &X) {
 }
 
 // обратное распространение
-void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
-	VolumeSize size;
-
-	size.height = S * (outputSize.height - 1) + 1;
-	size.width = S * (outputSize.width - 1) + 1;
-	size.deep = outputSize.deep;
-
-	std::vector<Volume> deltas(dout.size(), Volume(size));
-
-	for (size_t n = 0; n < dout.size(); n++) {
-		for (int d = 0; d < size.deep; d++)
-			for (int i = 0; i < outputSize.height; i++)
-				for (int j = 0; j < outputSize.width; j++)
-					deltas[n](d, i * S, j * S) = dout[n](d, i, j) * df[n](d, i, j);
-	}
-
+void ConvWithoutStrideLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) {
 	#pragma omp parallel for
 	for (int f = 0; f < fc; f++) {
 		for (size_t n = 0; n < dout.size(); n++) {
-			for (int k = 0; k < size.height; k++) {
-				for (int l = 0; l < size.width; l++) {
-					double delta = deltas[n](f, k, l); // значение фильтра
+			for (int k = 0; k < outputSize.height; k++) {
+				for (int l = 0; l < outputSize.width; l++) {
+					double delta = dout[n](f, k, l) * df[n](f, k, l); // значение фильтра
 
 					for (int i = 0; i < fs; i++) {
 						int i0 = i + k - P;
@@ -235,17 +217,17 @@ void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 						for (int k = 0; k < fs; k++) {
 							int i0 = i+k-pad;
 
-							if (i0 < 0 || i0 >= size.height)
+							if (i0 < 0 || i0 >= outputSize.height)
 								continue;
 
 							for (int l = 0; l < fs; l++) {
 								int j0 = j+l-pad;
 
-								if (j0 < 0 || j0 >= size.width)
+								if (j0 < 0 || j0 >= outputSize.width)
 									continue;
 
 								for (int f = 0; f < fc; f++)
-									sum += W[f](c, fs - 1 - k, fs - 1 - l) * deltas[n](f, i0, j0);
+									sum += W[f](c, fs - 1 - k, fs - 1 - l) * dout[n](f, i0, j0) * df[n](f, i0, j0);
 							}
 						}
 
@@ -258,7 +240,7 @@ void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 }
 
 // обновление весовых коэффициентов
-void ConvLayer::UpdateWeights(const Optimizer &optimizer) {
+void ConvWithoutStrideLayer::UpdateWeights(const Optimizer &optimizer) {
 	int batchSize = output.size();
 	int total = fd * fs * fs;
 
@@ -275,7 +257,7 @@ void ConvLayer::UpdateWeights(const Optimizer &optimizer) {
 }
 
 // сброс параметров
-void ConvLayer::ResetCache() {
+void ConvWithoutStrideLayer::ResetCache() {
 	int total = fd * fs * fs;
 
 	for (int index = 0; index < OPTIMIZER_PARAMS_COUNT; index++) {
@@ -289,9 +271,9 @@ void ConvLayer::ResetCache() {
 }
 
 // сохранение слоя в файл
-void ConvLayer::Save(std::ofstream &f) const {
+void ConvWithoutStrideLayer::Save(std::ofstream &f) const {
 	f << "conv " << inputSize << " ";
-	f << fs << " " << fc << " " << P << " " << S << std::endl;
+	f << fs << " " << fc << " " << P << " 1" << std::endl;
 
 	for (int index = 0; index < fc; index++) {
 		for (int d = 0; d < fd; d++)
@@ -304,22 +286,22 @@ void ConvLayer::Save(std::ofstream &f) const {
 }
 
 // установка размера батча
-void ConvLayer::SetBatchSize(int batchSize) {
+void ConvWithoutStrideLayer::SetBatchSize(int batchSize) {
 	output = std::vector<Volume>(batchSize, Volume(outputSize));
 	df = std::vector<Volume>(batchSize, Volume(outputSize));
 	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }
 
-void ConvLayer::SetWeight(int index, int i, int j, int k, double weight) {
+void ConvWithoutStrideLayer::SetWeight(int index, int i, int j, int k, double weight) {
 	W[index](i, j, k) = weight;
 }
 
-void ConvLayer::SetBias(int index, double bias) {
+void ConvWithoutStrideLayer::SetBias(int index, double bias) {
 	b[index] = bias;
 }
 
 // установка веса по индексу
-void ConvLayer::SetParam(int index, double weight) {
+void ConvWithoutStrideLayer::SetParam(int index, double weight) {
 	int params = fs * fs * fd + 1;
 	int findex = index / params;
 	int windex = index % params;
@@ -333,7 +315,7 @@ void ConvLayer::SetParam(int index, double weight) {
 }
 
 // получение веса по индексу
-double ConvLayer::GetParam(int index) const {
+double ConvWithoutStrideLayer::GetParam(int index) const {
 	int params = fs * fs * fd + 1;
 	int findex = index / params;
 	int windex = index % params;
@@ -345,7 +327,7 @@ double ConvLayer::GetParam(int index) const {
 }
 
 // получение градиента веса по индексу
-double ConvLayer::GetGradient(int index) const {
+double ConvWithoutStrideLayer::GetGradient(int index) const {
 	int params = fs * fs * fd + 1;
 	int findex = index / params;
 	int windex = index % params;
@@ -357,7 +339,7 @@ double ConvLayer::GetGradient(int index) const {
 }
 
 // обнуление градиента веса по индексу
-void ConvLayer::ZeroGradient(int index) {
+void ConvWithoutStrideLayer::ZeroGradient(int index) {
 	int params = fs * fs * fd + 1;
 	int findex = index / params;
 	int windex = index % params;
