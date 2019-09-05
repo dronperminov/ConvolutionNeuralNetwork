@@ -32,62 +32,248 @@
 
 #include "../Entities/ArgParser.hpp"
 
+// парсинг свёрточного слоя
+NetworkLayer* ParseConvLayer(VolumeSize size, ArgParser &parser) {
+	std::string fs = "";
+	std::string fc = "";
+	std::string S = "1";
+	std::string P = "0";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "filter_size" || arg == "fs") {
+			fs = parser.Get(arg);
+		}
+		else if (arg == "filters" || arg == "fc") {
+			fc = parser.Get(arg);
+		}
+		else if (arg == "S") {
+			S = parser.Get(arg);
+		}
+		else if (arg == "padding" || arg == "P") {
+			P = parser.Get(arg);
+		}
+		else if (arg != "conv" && arg != "convolution")
+			throw std::runtime_error("Invalid conv argument '" + arg + "'");
+	}
+
+	if (fc == "")
+		throw std::runtime_error("Unable to add conv layer. Filters count is not set");
+
+	if (fs == "")
+		throw std::runtime_error("Unable to add conv layer. Filters size is not set");
+
+	int pad;
+
+	if (P == "same") {
+		if (S != "1")
+			throw std::runtime_error("Unable to make same padding for stride > 1");
+
+		pad = (std::stoi(fs) - 1) / 2;
+	}
+	else if (P == "valid") {
+		pad = 0;
+	}
+	else if (P == "full") {
+		pad = std::stoi(fs) - 1;
+	}
+	else {
+		pad = std::stoi(P);
+	}
+
+	if (S == "1")
+		return new ConvWithoutStrideLayer(size, std::stoi(fc), std::stoi(fs), pad);
+
+	return new ConvLayer(size, std::stoi(fc), std::stoi(fs), pad, std::stoi(S));
+}
+
+// парсинг слоя пулинга
+NetworkLayer* ParsePoolingLayers(VolumeSize size, ArgParser &parser) {
+	std::string scale = "2";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "scale") {
+			scale = parser.Get(arg);
+		}
+		else if (arg != "maxpool" && arg != "pooling" && arg != "maxpooling" && arg != "avgpool" && arg != "averagepooling" && arg != "avgpooling")
+			throw std::runtime_error("Invalid pooling argument '" + arg + "'");
+	}
+
+	if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"])
+		return new MaxPoolingLayer(size, std::stoi(scale));
+
+	if (parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"])
+		return new AveragePoolingLayer(size, std::stoi(scale));
+
+	return nullptr;
+}
+
+// парсинг полносвязного слоя
+NetworkLayer* ParseFullyConnectedLayer(VolumeSize size, ArgParser &parser) {
+	std::string outputs = "";
+	std::string type = "none";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "outputs" || arg == "size") {
+			outputs = parser.Get(arg);
+		}
+		else if (arg == "activation") {
+			type = parser.Get(arg);
+		}
+		else if (arg != "fc" && arg != "fullconnected")
+			throw std::runtime_error("Invalid fullyconnected argument '" + arg + "'");
+	}
+
+	if (outputs == "")
+		throw std::runtime_error("Unable to add full connected layer. Outputs is not set");
+
+	return new FullyConnectedLayer(size, std::stoi(outputs), type);
+}
+
+// парсинг слоёв дропаута
+NetworkLayer* ParseDropoutLayers(VolumeSize size, ArgParser &parser) {
+	std::string p = "0.5";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "p") {
+			p = parser.Get(arg);
+		}
+		else if (arg != "dropout" && arg != "gaussdropout")
+			throw std::runtime_error("Invalid dropout argument '" + arg + "'");
+	}
+
+	if (parser["dropout"])
+		return new DropoutLayer(size, std::stod(p));
+
+	if (parser["gaussdropout"])
+		return new GaussDropoutLayer(size, std::stod(p));
+
+	return nullptr;
+}
+
+// парсинг слоёв нормализации
+NetworkLayer* ParseNormalizationLayers(VolumeSize size, ArgParser &parser) {
+	std::string momentum = "0.9";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "momentum" || arg == "moment" || arg == "mu") {
+			momentum = parser.Get(arg);
+		}
+		else if (arg != "batchnormalization" && arg != "batchnormalization2D")
+			throw std::runtime_error("Invalid normalization argument '" + arg + "'");
+	}
+
+	if (parser["batchnormalization"])
+		return new BatchNormalizationLayer(size, std::stod(momentum));
+
+	if (parser["batchnormalization2D"])
+		return new BatchNormalization2DLayer(size, std::stod(momentum));
+
+	return nullptr;
+}
+
+// парсинг слоя шума
+NetworkLayer* ParseNoiseLayer(VolumeSize size, ArgParser &parser) {
+	std::string stddev = "0.5";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "stddev" || arg == "dev") {
+			stddev = parser.Get(arg);
+		}
+		else if (arg != "gaussnoise")
+			throw std::runtime_error("Invalid gauss noise argument '" + arg + "'");
+	}
+
+	return new GaussNoiseLayer(size, std::stod(stddev));
+}
+
+// парсинг residual слоя
+NetworkLayer* ParseResidualLayer(VolumeSize size, ArgParser &parser) {
+	std::string features = "";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "features" || arg == "k") {
+			features = parser.Get(arg);
+		}
+		else if (arg != "res" && arg != "residual")
+			throw std::runtime_error("Invalid residual argument '" + arg + "'");
+	}
+
+	if (features == "")
+		throw std::runtime_error("Unable to add residual layer. Features are not set");
+
+	return new ResidualLayer(size, std::stod(features));
+}
+
+// парсинг inception слоя
+NetworkLayer* ParseInceptionLayer(VolumeSize size, ArgParser &parser) {
+	std::string fc1 = "";
+	std::string fc3 = "";
+	std::string fc5 = "";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "fc1") {
+			fc1 = parser.Get(arg);
+		}
+		else if (arg == "fc3") {
+			fc3 = parser.Get(arg);
+		}
+		else if (arg == "fc5") {
+			fc5 = parser.Get(arg);
+		}
+		else if (arg != "inception")
+			throw std::runtime_error("Invalid inception argument '" + arg + "'");
+	}
+
+	if (fc1 == "" || fc3 == "" || fc5 == "")
+		throw std::runtime_error("Unable to add inception layer. Features are not set");
+
+	return new InceptionLayer(size, std::stod(fc1), std::stod(fc3), std::stod(fc5));
+}
+
 // создание слоя по описанию
 NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	NetworkLayer *layer = nullptr;
 	ArgParser parser(layerConf);
 
 	if (parser["conv"] || parser["convolution"]) {
-		if (!parser["filters"])
-			throw std::runtime_error("Unable to add conv layer. Filters count is not set");
-
-		std::string fs = parser.Get("filter_size", "3");
-		std::string fc = parser.Get("filters");
-
-		std::string S = parser.Get("S", "1");
-		std::string P = parser.Get("P", "0");
-
-		if (S == "1")
-			layer = new ConvWithoutStrideLayer(size, std::stoi(fc), std::stoi(fs), std::stoi(P));
-		else
-			layer = new ConvLayer(size, std::stoi(fc), std::stoi(fs), std::stoi(P), std::stoi(S));
+		layer = ParseConvLayer(size, parser);
 	}
-	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"]) {
-		std::string scale = parser.Get("scale", "2");
-
-		layer = new MaxPoolingLayer(size, std::stoi(scale));
-	}
-	else if (parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
-		std::string scale = parser.Get("scale", "2");
-
-		layer = new AveragePoolingLayer(size, std::stoi(scale));
+	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"] || parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
+		layer = ParsePoolingLayers(size, parser);
 	}
 	else if (parser["fc"] || parser["fullconnected"]) {
-		if (!parser["outputs"])
-			throw std::runtime_error("Unable to add full connected layer. Outputs is not set");
-
-		std::string outputs = parser.Get("outputs");
-		std::string type = parser.Get("activation", "none");
-
-		layer = new FullyConnectedLayer(size, std::stoi(outputs), type);
+		layer = ParseFullyConnectedLayer(size, parser);
 	}
 	else if (parser["residual"] || parser["res"]) {
-		if (!parser["features"])
-			throw std::runtime_error("Unable to add residual layer. Features are not set");
-
-		std::string features = parser.Get("features");
-
-		layer = new ResidualLayer(size, std::stod(features));
+		layer = ParseResidualLayer(size, parser);
 	}
 	else if (parser["inception"]) {
-		if (!parser["fc1"] || !parser["fc3"] || !parser["fc5"])
-			throw std::runtime_error("Unable to add inception layer. Features are not set");
-
-		std::string fc1 = parser.Get("fc1");
-		std::string fc3 = parser.Get("fc3");
-		std::string fc5 = parser.Get("fc5");
-
-		layer = new InceptionLayer(size, std::stod(fc1), std::stod(fc3), std::stod(fc5));
+		layer = ParseInceptionLayer(size, parser);
+	}
+	else if (parser["dropout"] || parser["gaussdropout"]) {
+		layer = ParseDropoutLayers(size, parser);
+	}
+	else if (parser["batchnormalization"] || parser["batchnormalization2D"]) {
+		layer = ParseNormalizationLayers(size, parser);
+	}
+	else if (parser["gaussnoise"]) {
+		layer = ParseNoiseLayer(size, parser);
 	}
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size);
@@ -120,31 +306,6 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	}
 	else if (parser["swish"]) {
 		layer = new SwishLayer(size);
-	}
-	else if (parser["dropout"]) {
-		std::string p = parser.Get("p", "0.5");
-
-		layer = new DropoutLayer(size, std::stod(p));
-	}
-	else if (parser["gaussdropout"]) {
-		std::string p = parser.Get("p", "0.5");
-
-		layer = new GaussDropoutLayer(size, std::stod(p));
-	}
-	else if (parser["gaussnoise"]) {
-		std::string stddev = parser.Get("stddev", "0.5");
-
-		layer = new GaussNoiseLayer(size, std::stod(stddev));
-	}
-	else if (parser["batchnormalization"]) {
-		std::string momentum = parser.Get("momentum", "0.9");
-
-		layer = new BatchNormalizationLayer(size, std::stod(momentum));
-	}
-	else if (parser["batchnormalization2D"]) {
-		std::string momentum = parser.Get("momentum", "0.9");
-
-		layer = new BatchNormalization2DLayer(size, std::stod(momentum));
 	}
 	else {
 		throw std::runtime_error("Invalid layer name '" + layerConf + "'");
