@@ -6,7 +6,7 @@
 using namespace std;
 
 int main() {
-	string dir = "C:/Users/Andrew/Desktop/ImageRecognition/cifar10/";//"../dataset/"; // путь к папке с файлами
+	string dir = "../dataset/"; // путь к папке с файлами
 	string train = dir + "cifar10_train.csv"; // обучающая выборка
 	string test = dir + "cifar10_test.csv"; // тестовая выборка
 	string labels = dir + "cifar10.txt"; // файл с классами
@@ -19,7 +19,7 @@ int main() {
 
 	double learningRate = 0.001; // скорость обучения
 	int batchSize = 64; // размер батча
-	int maxEpochs = 100; // число эпох обучения
+	int maxEpochs = 200; // число эпох обучения
 
 	Network network(width, height, deep);
 
@@ -54,6 +54,7 @@ int main() {
 	Optimizer optimizer = Optimizer::Adam(learningRate);
 
 	double bestAcc = 0;
+	string augmentation = "shift-x=0.1 shift-y=0.1 br-min=0.8 br-max=1.2 rotate=15";
 
 	// запускаем обучение с проверкой и сохранением наилучших сетей
 	for (int epoch = 1; epoch <= maxEpochs; epoch++) {
@@ -61,7 +62,7 @@ int main() {
 
 		optimizer.SetEpoch(epoch);
 		
-		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy); // обучаем в течение одной эпохи
+		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy, augmentation); // обучаем в течение одной эпохи
 		cout << "loss: " << loss << endl;
 
 		double testAcc = loader.Test(network, test, "", 10000); // проверяем точность на тестовой выборке
