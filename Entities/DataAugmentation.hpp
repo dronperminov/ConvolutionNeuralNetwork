@@ -20,26 +20,35 @@ public:
 DataAugmentation::DataAugmentation(const std::string &config) {
 	ArgParser parser(config);
 
+	verticalShift = 0;
+	horizontalShift = 0;
+	fillValue = 0;
+
+	brightnessMin = 1;
+	brightnessMax = 1;
+
+	rotation = 0;
+
 	for (size_t i = 0; i < parser.size(); i++) {
 		std::string arg = parser[i];
 
-		if (arg == "shift-y") {
-			verticalShift = stod(parser.Get("shift-y", "0"));
+		if (arg == "shift-y" || arg == "shift-vert") {
+			verticalShift = stod(parser.Get(arg));
 		}
-		else if (arg == "shift-x") {
-			horizontalShift = stod(parser.Get("shift-x", "0"));
+		else if (arg == "shift-x" || arg == "shift-hori") {
+			horizontalShift = stod(parser.Get(arg));
 		}
 		else if (arg == "fill") {
-			fillValue = stod(parser.Get("fill", "0"));
+			fillValue = stod(parser.Get(arg));
 		}
-		else if (arg == "br-min") {
-			brightnessMin = stod(parser.Get("br-min", "1"));
+		else if (arg == "br-min" || arg == "min-br") {
+			brightnessMin = stod(parser.Get(arg));
 		}
-		else if (arg == "br-max") {
-			brightnessMax = stod(parser.Get("br-max", "1"));
+		else if (arg == "br-max" || arg == "max-br") {
+			brightnessMax = stod(parser.Get(arg));
 		}
-		else if (arg == "rotate") {
-			rotation = stod(parser.Get("rotate", "0")) / 180 * M_PI;
+		else if (arg == "rotate" || arg == "rotation") {
+			rotation = stod(parser.Get(arg)) / 180 * M_PI;
 		}
 		else
 			throw std::runtime_error("Invalid data augmentation argument '" + arg + "'");
