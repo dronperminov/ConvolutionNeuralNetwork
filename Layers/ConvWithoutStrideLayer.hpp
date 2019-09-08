@@ -16,8 +16,6 @@ class ConvWithoutStrideLayer : public NetworkLayer {
 	std::vector<double> db; // градиенты смещений
 	std::vector<std::vector<double>> paramsb; // параметры смещений
 
-	std::vector<Volume> df;
-
 	int P; // дополнение нулями
 
 	int fc; // количество фильтров
@@ -158,14 +156,7 @@ void ConvWithoutStrideLayer::Forward(const std::vector<Volume> &X) {
 						}
 					}
 
-					if (sum > 0) {
-						output[n](f, i, j) = sum;
-						df[n](f, i, j) = 1;
-					}
-					else {
-						output[n](f, i, j) = 0;
-						df[n](f, i, j) = 0;
-					}
+					output[n](f, i, j) = sum;
 				}
 			}
 		}
@@ -179,7 +170,7 @@ void ConvWithoutStrideLayer::Backward(const std::vector<Volume> &dout, const std
 		for (size_t n = 0; n < dout.size(); n++) {
 			for (int k = 0; k < outputSize.height; k++) {
 				for (int l = 0; l < outputSize.width; l++) {
-					double delta = dout[n](f, k, l) * df[n](f, k, l); // значение фильтра
+					double delta = dout[n](f, k, l);
 
 					for (int i = 0; i < fs; i++) {
 						int i0 = i + k - P;
@@ -227,7 +218,7 @@ void ConvWithoutStrideLayer::Backward(const std::vector<Volume> &dout, const std
 									continue;
 
 								for (int f = 0; f < fc; f++)
-									sum += W[f](c, fs - 1 - k, fs - 1 - l) * dout[n](f, i0, j0) * df[n](f, i0, j0);
+									sum += W[f](c, fs - 1 - k, fs - 1 - l) * dout[n](f, i0, j0);
 							}
 						}
 
@@ -288,7 +279,6 @@ void ConvWithoutStrideLayer::Save(std::ofstream &f) const {
 // установка размера батча
 void ConvWithoutStrideLayer::SetBatchSize(int batchSize) {
 	output = std::vector<Volume>(batchSize, Volume(outputSize));
-	df = std::vector<Volume>(batchSize, Volume(outputSize));
 	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }
 

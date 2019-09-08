@@ -16,8 +16,6 @@ class ConvLayer : public NetworkLayer {
 	std::vector<double> db; // градиенты смещений
 	std::vector<std::vector<double>> paramsb; // параметры смещений
 
-	std::vector<Volume> df;
-
 	int P; // дополнение нулями
 	int S; // шаг свёртки
 
@@ -161,14 +159,7 @@ void ConvLayer::Forward(const std::vector<Volume> &X) {
 						}
 					}
 
-					if (sum > 0) {
-						output[n](f, i, j) = sum;
-						df[n](f, i, j) = 1;
-					}
-					else {
-						output[n](f, i, j) = 0;
-						df[n](f, i, j) = 0;
-					}
+					output[n](f, i, j) = sum;
 				}
 			}
 		}
@@ -189,7 +180,7 @@ void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 		for (int d = 0; d < size.deep; d++)
 			for (int i = 0; i < outputSize.height; i++)
 				for (int j = 0; j < outputSize.width; j++)
-					deltas[n](d, i * S, j * S) = dout[n](d, i, j) * df[n](d, i, j);
+					deltas[n](d, i * S, j * S) = dout[n](d, i, j);
 	}
 
 	#pragma omp parallel for
@@ -306,7 +297,6 @@ void ConvLayer::Save(std::ofstream &f) const {
 // установка размера батча
 void ConvLayer::SetBatchSize(int batchSize) {
 	output = std::vector<Volume>(batchSize, Volume(outputSize));
-	df = std::vector<Volume>(batchSize, Volume(outputSize));
 	dX = std::vector<Volume>(batchSize, Volume(inputSize));
 }
 
