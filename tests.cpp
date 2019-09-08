@@ -283,10 +283,10 @@ void ConvLayerTest() {
 	assert(output.Deep() == 2);
 
 	assert(output(0, 0, 0) == 2);
-	assert(output(0, 0, 1) == 0);
-	assert(output(0, 0, 2) == 0);
+	assert(output(0, 0, 1) == -3);
+	assert(output(0, 0, 2) == -1);
 	assert(output(0, 1, 0) == 5);
-	assert(output(0, 1, 1) == 0);
+	assert(output(0, 1, 1) == -7);
 	assert(output(0, 1, 2) == 2);
 	assert(output(0, 2, 0) == 5);
 	assert(output(0, 2, 1) == 0);
@@ -297,8 +297,8 @@ void ConvLayerTest() {
 	assert(output(1, 0, 2) == 2);
 	assert(output(1, 1, 0) == 1);
 	assert(output(1, 1, 1) == 0);
-	assert(output(1, 1, 2) == 0);
-	assert(output(1, 2, 0) == 0);
+	assert(output(1, 1, 2) == -3);
+	assert(output(1, 2, 0) == -2);
 	assert(output(1, 2, 1) == 4);
 	assert(output(1, 2, 2) == 3);
 
