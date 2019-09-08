@@ -10,6 +10,7 @@
 
 #include "ResidualLayer.hpp"
 #include "InceptionLayer.hpp"
+#include "IdentityLayer.hpp"
 
 #include "DropoutLayer.hpp"
 #include "GaussDropoutLayer.hpp"
@@ -266,6 +267,9 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	else if (parser["inception"]) {
 		layer = ParseInceptionLayer(size, parser);
 	}
+	else if (parser["identity"]) {
+		layer = new IdentityLayer(size);
+	}
 	else if (parser["dropout"] || parser["gaussdropout"]) {
 		layer = ParseDropoutLayers(size, parser);
 	}
@@ -393,6 +397,9 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> type;
 
 		layer = new NetworkBlock(size, type, f);
+	}
+	else if (layerType == "identity") {
+		layer = new IdentityLayer(size);
 	}
 	else if (layerType == "sigmoid") {
 		layer = new SigmoidLayer(size);
