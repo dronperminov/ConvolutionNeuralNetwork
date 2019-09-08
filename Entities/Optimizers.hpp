@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <algorithm>
+#include "ArgParser.hpp"
 
 #define OPTIMIZER_PARAMS_COUNT 3
 
@@ -15,7 +17,8 @@ enum class OptimizerType {
 	AdaMax,
 	Nadam,
 	AMSgrad,
-	AdaBound
+	AdaBound,
+	Unknown
 };
 
 class Optimizer {
@@ -43,6 +46,8 @@ class Optimizer {
 	Optimizer(OptimizerType type, double learningRate, double weightDecay, double beta1 = 0, double beta2 = 0, double param3 = 0, double param4 = 0);
 
 public:
+	Optimizer(std::string config); // оптимизатор по текстовому описанию
+
 	static Optimizer SGD(double learningRate = 0.01, double weightDecay = 0); // стохастический градиентный спуск
 	static Optimizer SGDm(double learningRate = 0.01, double weightDecay = 0, double moment = 0.9); // стохастический градиентный спуск с моментом
 	static Optimizer Adagrad(double learningRate = 0.01, double weightDecay = 0); // адаптивный градиент
@@ -76,6 +81,148 @@ Optimizer::Optimizer(OptimizerType type, double learningRate, double weightDecay
 
 	this->epoch = 1;
 	this->weightDecay = weightDecay;
+}
+
+// оптимизатор по текстовому описанию
+Optimizer::Optimizer(std::string config) {
+	std::transform(config.begin(), config.end(), config.begin(), ::tolower);
+	ArgParser parser(config);
+
+	type = OptimizerType::Unknown; // изначально тип неизвестен
+	weightDecay = 0;
+	epoch = 1;
+
+	beta1 = 0;
+	beta2 = 0;
+	param3 = 0;
+	param4 = 0;
+
+	if (parser["sgd"]) {
+		type = OptimizerType::SGD;
+		learningRate = 0.01;
+	}
+	else if (parser["sgdm"]) {
+		type = OptimizerType::SGDm;
+
+		learningRate = 0.01;
+		beta1 = 0.9;
+	}
+	else if (parser["adagrad"]) {
+		type = OptimizerType::Adagrad;
+		learningRate = 0.01;
+	}
+	else if (parser["adadelta"]) {
+		type = OptimizerType::Adadelta;
+
+		learningRate = 0;
+		beta1 = 0.9;
+	}
+	else if (parser["rmsprop"]) {
+		type = OptimizerType::RMSprop;
+
+		learningRate = 0.001;
+		beta1 = 0.9;
+	}
+	else if (parser["nag"]) {
+		type = OptimizerType::NAG;
+
+		learningRate = 0.01;
+		beta1 = 0.9;
+	}
+	else if (parser["adam"]) {
+		type = OptimizerType::Adam;
+
+		learningRate = 0.001;
+		beta1 = 0.9;
+		beta2 = 0.999;
+	}
+	else if (parser["adamax"]) {
+		type = OptimizerType::AdaMax;
+
+		learningRate = 0.002;
+		beta1 = 0.9;
+		beta2 = 0.999;
+	}
+	else if (parser["nadam"]) {
+		type = OptimizerType::Nadam;
+
+		learningRate = 0.002;
+		beta1 = 0.9;
+		beta2 = 0.999;
+	}
+	else if (parser["amsgrad"]) {
+		type = OptimizerType::AMSgrad;
+
+		learningRate = 0.002;
+		beta1 = 0.9;
+		beta2 = 0.999;
+	}
+	else if (parser["adabound"]) {
+		type = OptimizerType::AdaBound;
+
+		learningRate = 0.001;
+		beta1 = 0.9;
+		beta2 = 0.999;
+		param3 = 0.1;
+		param4 = 1e-3;
+	}
+
+	if (type == OptimizerType::Unknown)
+		throw std::runtime_error("Unknown optimizer");
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "learningrate" || arg == "lr") {
+			learningRate = std::stod(parser.Get(arg));
+		}
+		else if (arg == "weightdecay" || arg == "decay" || arg == "wd") {
+			weightDecay = std::stod(parser.Get(arg));
+		}
+		else if (arg == "epoch") {
+			epoch = std::stoi(parser.Get(arg));
+		}
+		else if (type == OptimizerType::SGDm && (arg == "moment" || arg == "m")) {
+			beta1 = std::stod(parser.Get(arg));
+		}
+		else if (type == OptimizerType::Adadelta && arg == "gamma") {
+			beta1 = std::stod(parser.Get(arg));
+		}
+		else if (type == OptimizerType::RMSprop && arg == "beta") {
+			beta1 = std::stod(parser.Get(arg));
+		}
+		else if (type == OptimizerType::NAG && arg == "mu") {
+			beta1 = std::stod(parser.Get(arg));
+		}
+		else if (type == OptimizerType::Adam || type == OptimizerType::AdaMax || type == OptimizerType::Nadam || type == OptimizerType::AMSgrad) {
+			if (arg == "beta1") {
+				beta1 = std::stod(parser.Get(arg));
+			}
+			else if (arg == "beta2") {
+				beta2 = std::stod(parser.Get(arg));
+			}
+			else if (arg != "adam" && arg != "adamax" && arg != "nadam" && arg != "amsgrad")
+				throw std::runtime_error("Invalid optimizer argument '" + arg + "'");
+		}
+		else if (type == OptimizerType::AdaBound) {
+			if (arg == "beta1") {
+				beta1 = std::stod(parser.Get(arg));
+			}
+			else if (arg == "beta2") {
+				beta2 = std::stod(parser.Get(arg));
+			}
+			else if (arg == "finallearningRate" || arg == "finallr" || arg == "endlr") {
+				param3 = std::stod(parser.Get(arg));
+			}
+			else if (arg == "gamma") {
+				param4 = std::stod(parser.Get(arg));
+			}
+			else if (arg != "adabound")
+				throw std::runtime_error("Invalid optimizer argument '" + arg + "'");
+		}
+		else if (arg != "sgd" && arg != "sgdm" && arg != "adagrad" && arg != "adadelta" && arg != "rmsprop" && arg != "nag" && arg != "adam" && arg != "adamax" && arg != "nadam" && arg != "amsgrad" && arg != "adabound")
+			throw std::runtime_error("Invalid optimizer argument '" + arg + "'");
+	}
 }
 
 // стохастический градиентный спуск
@@ -222,8 +369,8 @@ void Optimizer::UpdateAdaBound(double grad, double &m, double &v, double &dw3, d
 	double mt = m / (1 - pow(beta1, epoch));
 	double vt = v / (1 - pow(beta2, epoch));
 
-	double lower_bound = param4 * (1 - 1 / (param3 * epoch + 1));
-	double upper_bound = param4 * (1 + 1 / (param3 * epoch));
+	double lower_bound = param3 * (1 - 1 / (param4 * epoch + 1));
+	double upper_bound = param3 * (1 + 1 / (param4 * epoch));
 	double step = learningRate / (sqrt(vt) + 1e-8);
 
 	if (step < lower_bound) {
