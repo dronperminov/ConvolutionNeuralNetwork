@@ -29,8 +29,7 @@ public:
 	std::vector<Volume>& GetOutput();
 	std::vector<Volume>& GetDeltas();
 
-	void PrintConfig() const;
-	
+	virtual void PrintConfig() const; // вывод параметров слоя	
 	virtual int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	virtual void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
@@ -87,7 +86,7 @@ void NetworkLayer::PrintConfig() const {
 	std::cout << std::right << std::setw(12) << inputSize.ToString() << " | ";
 	std::cout << std::setw(13) << outputSize.ToString() << " | ";
 	std::cout << std::setw(12) << GetTrainableParams() << " | ";
-	std::cout << info << std::endl; 
+	std::cout << info << std::endl;
 }
 
 // получение количества обучаемых параметров

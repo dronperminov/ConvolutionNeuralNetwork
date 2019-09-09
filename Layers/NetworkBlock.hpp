@@ -52,6 +52,7 @@ public:
 	void AddBlock();
 	void Compile();
 
+	void PrintConfig() const;
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
@@ -203,6 +204,26 @@ void NetworkBlock::Compile() {
 		for (size_t i = 0; i < blocks.size(); i++)
 			outputSize.deep += blocks[i][blocks[i].size() - 1]->GetOutputSize().deep;
 	}
+}
+
+void NetworkBlock::PrintConfig() const {
+	std::cout << "| " << std::left << std::setw(14) << name << " | ";
+	std::cout << std::right << std::setw(12) << inputSize.ToString() << " | ";
+	std::cout << std::setw(13) << outputSize.ToString() << " | ";
+	std::cout << std::setw(12) << GetTrainableParams() << " | ";
+	std::cout << info << std::endl;
+
+	std::cout << "============================================================================================" << std::endl;
+
+	for (size_t i = 0; i < blocks.size(); i++) {
+		for (size_t j = 0; j < blocks[i].size(); j++)
+			blocks[i][j]->PrintConfig();
+
+		if (i < blocks.size() - 1)
+			std::cout << "+----------------+--------------+---------------+--------------+----------------------------" << std::endl;
+	}
+
+	std::cout << "============================================================================================" << std::endl;
 }
 
 // получение количества обучаемых параметров
