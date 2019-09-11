@@ -188,10 +188,10 @@ void Volume::Save(const std::string &path, int blockSize) const {
 			}
 			
 			if (size.deep == 1) {
-				image.save_image(path + "_ch" + std::to_string(d) + ".bmp");
+				image.save_image(path + ".bmp");
 			}
 			else {
-				image.save_image(path + ".bmp");
+				image.save_image(path + "_ch" + std::to_string(d) + ".bmp");
 			}
 		}
 	}
