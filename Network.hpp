@@ -49,6 +49,7 @@ public:
 
 	void Save(const std::string &path, bool verbose = true) const; // сохранение сети в файл
 	void Load(const std::string &path, bool verbose = true); // загрузка сети из файла
+	void Visualize(const Volume& input, const std::string &path, int blockSize = 1); // визуализация активаций нейронной сети на каждом из уровней
 
 	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
 
@@ -383,6 +384,16 @@ void Network::Load(const std::string &path, bool verbose) {
 
 	if (verbose)
 		std::cout << "Network succesfully loaded from '" << path << "'" << std::endl;
+}
+
+// визуализация активаций нейронной сети на каждом из уровней
+void Network::Visualize(const Volume& input, const std::string &path, int blockSize) {
+	Volume &output = GetOutput(input);
+
+	input.Save(path + "input", blockSize);
+
+	for (size_t i = 0; i < layers.size(); i++)
+		layers[i]->GetOutput()[0].Save(path + "layer" + std::to_string(i + 1), blockSize);
 }
 
 // изменение обучаемости слоя

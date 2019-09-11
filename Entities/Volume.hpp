@@ -156,7 +156,20 @@ void Volume::Save(const std::string &path, int blockSize) const {
 	int width = size.width * blockSize;
 	int height = size.height * blockSize;
 
-	if (size.deep == 3) {
+	if (size.width == 1 && size.height == 1) {
+		BitmapImage image(blockSize, size.deep * blockSize);
+
+		for (int d = 0; d < size.deep; d++) {
+			int value = (values[d] - min) / (max - min) * 255;
+
+			for (int i = 0; i < blockSize; i++)
+				for (int j = 0; j < blockSize; j++)
+					image.set_pixel(j, d * blockSize + i, 0, value, 0);
+		}
+		
+		image.save_image(path + ".bmp");
+	}
+	else if (size.deep == 3) {
 		BitmapImage image(width, height);
 
 		for (int y = 0; y < size.height; y++) {
