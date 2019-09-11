@@ -12,6 +12,9 @@ class DataAugmentation {
 
 	double rotation;
 
+	bool horizontalFlip;
+	bool verticalFlip;
+
 public:
 	DataAugmentation(const std::string &config);
 	Volume Make(const Volume &volume);
@@ -28,6 +31,9 @@ DataAugmentation::DataAugmentation(const std::string &config) {
 	brightnessMax = 1;
 
 	rotation = 0;
+
+	verticalFlip = false;
+	horizontalFlip = false;
 
 	for (size_t i = 0; i < parser.size(); i++) {
 		std::string arg = parser[i];
@@ -49,6 +55,30 @@ DataAugmentation::DataAugmentation(const std::string &config) {
 		}
 		else if (arg == "rotate" || arg == "rotation") {
 			rotation = stod(parser.Get(arg)) / 180 * M_PI;
+		}
+		else if (arg == "flip-y" || arg == "flip-vert" || arg == "vert-flip" || arg == "vertical-flip") {
+			std::string value = parser.Get(arg);
+
+			if (value == "" || value == "true") {
+				verticalFlip = true;
+			}
+			else if (value == "false") {
+				verticalFlip = false;
+			}
+			else
+				throw std::runtime_error("Invalid value for vertical flip");
+		}
+		else if (arg == "flip-x" || arg == "flip-hori" || arg == "hori-flip" || arg == "horizontal-flip") {
+			std::string value = parser.Get(arg);
+
+			if (value == "" || value == "true") {
+				horizontalFlip = true;
+			}
+			else if (value == "false") {
+				horizontalFlip = false;
+			}
+			else
+				throw std::runtime_error("Invalid value for horizontal flip");
 		}
 		else
 			throw std::runtime_error("Invalid data augmentation argument '" + arg + "'");
@@ -80,6 +110,9 @@ Volume DataAugmentation::Make(const Volume &volume) {
 	double w = size.width / 2.0;
 	double h = size.height / 2.0;
 
+	bool flipVert = verticalFlip && rand() % 2;
+	bool flipHori = horizontalFlip && rand() % 2;
+
 	#pragma omp parallel for collapse(3)
 	for (int d = 0; d < size.deep; d++) {
 		for (int i = 0; i < size.height; i++) {
@@ -90,11 +123,14 @@ Volume DataAugmentation::Make(const Volume &volume) {
 				int i1 = x * s + y * c + h;
 				int j1 = x * c - y * s + w;
 
+				y = flipVert ? size.height - 1 - i : i;
+				x = flipHori ? size.width - 1 - j : j;
+
 				if (i1 >= 0 && j1 >= 0 && i1 < size.height && j1 < size.width) {
-					result(d, i, j) = volume(d, i1, j1) * brightnessScale;
+					result(d, y, x) = volume(d, i1, j1) * brightnessScale;
 				}
 				else {
-					result(d, i, j) = fillValue;
+					result(d, y, x) = fillValue;
 				}
 			}
 		}
