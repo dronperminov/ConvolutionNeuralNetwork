@@ -5,6 +5,7 @@
 #include <string>
 
 #include "GaussRandom.hpp"
+#include "Bitmap.hpp"
 
 // размерность объёма
 struct VolumeSize {
@@ -40,6 +41,9 @@ public:
 	Volume(int width, int height, int deep); // создание из размеров
 	Volume(VolumeSize size);
 
+	double& At(int d, int i, int j); // индексация
+	double At(int d, int i, int j) const; // индексация
+
 	double& operator()(int d, int i, int j); // индексация
 	double operator()(int d, int i, int j) const; // индексация
 
@@ -53,6 +57,7 @@ public:
 	VolumeSize GetSize() const; // получение размера
 
 	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
+	void Save(const std::string &path, int blockSize = 1) const; // сохранение в виде картинки
 
 	friend std::ostream& operator<<(std::ostream& os, const Volume &volume);
 };
@@ -77,6 +82,16 @@ Volume::Volume(int width, int height, int deep) {
 // создание из размера
 Volume::Volume(VolumeSize size) {
 	Init(size.width, size.height, size.deep);
+}
+
+// индексация
+double& Volume::At(int d, int i, int j) {
+	return values[i * dw + j * size.deep + d];
+}
+
+// индексация
+double Volume::At(int d, int i, int j) const {
+	return values[i * dw + j * size.deep + d];
 }
 
 // индексация
@@ -123,6 +138,63 @@ VolumeSize Volume::GetSize() const {
 void Volume::FillRandom(GaussRandom& random, double dev, double mean) {
 	for (int i = 0; i < whd; i++)
 		values[i] = random.Next(dev, mean);
+}
+
+// сохранение в виде картинки
+void Volume::Save(const std::string &path, int blockSize) const {
+	double min = values[0];
+	double max = values[0];
+
+	for (size_t i = 0; i < values.size(); i++) {
+		if (values[i] < min)
+			min = values[i];
+
+		if (values[i] > max)
+			max = values[i];
+	}
+
+	int width = size.width * blockSize;
+	int height = size.height * blockSize;
+
+	if (size.deep == 3) {
+		BitmapImage image(width, height);
+
+		for (int y = 0; y < size.height; y++) {
+			for (int x = 0; x < size.width; x++) {
+				int r = (At(0, y, x) - min) / (max - min) * 255;
+				int g = (At(1, y, x) - min) / (max - min) * 255;
+				int b = (At(2, y, x) - min) / (max - min) * 255;
+
+				for (int i = 0; i < blockSize; i++)
+					for (int j = 0; j < blockSize; j++)
+						image.set_pixel(x * blockSize + j, y * blockSize + i, r, g, b);
+			}
+		}
+		
+		image.save_image(path + ".bmp");
+	}
+	else {
+		for (int d = 0; d < size.deep; d++) {
+			BitmapImage image(width, height);
+
+			for (int y = 0; y < size.height; y++) {
+				for (int x = 0; x < size.width; x++) {
+					int br = (At(d, y, x) - min) / (max - min) * 255;
+					
+					for (int i = 0; i < blockSize; i++)
+						for (int j = 0; j < blockSize; j++)
+							image.set_pixel(x * blockSize + j, y * blockSize + i, br, br, br);
+				}
+			}
+			
+			if (size.deep == 1) {
+				image.save_image(path + "_ch" + std::to_string(d) + ".bmp");
+			}
+			else {
+				image.save_image(path + ".bmp");
+			}
+		}
+	}
 }
 
 std::ostream& operator<<(std::ostream& os, const Volume &volume) {
