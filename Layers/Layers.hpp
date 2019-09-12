@@ -11,6 +11,7 @@
 #include "ResidualLayer.hpp"
 #include "InceptionLayer.hpp"
 #include "IdentityLayer.hpp"
+#include "ReshapeLayer.hpp"
 
 #include "DropoutLayer.hpp"
 #include "GaussDropoutLayer.hpp"
@@ -22,6 +23,7 @@
 #include "Activations/LogSigmoidLayer.hpp"
 #include "Activations/TanhLayer.hpp"
 #include "Activations/ReLULayer.hpp"
+#include "Activations/LeakyReLULayer.hpp"
 #include "Activations/ELULayer.hpp"
 #include "Activations/ParametricReLULayer.hpp"
 #include "Activations/SwishLayer.hpp"
@@ -270,6 +272,13 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	else if (parser["identity"]) {
 		layer = new IdentityLayer(size);
 	}
+	else if (parser["reshape"]) {
+		int w = std::stoi(parser.Get("width"));
+		int h = std::stoi(parser.Get("height"));
+		int d = std::stoi(parser.Get("deep"));
+
+		layer = new ReshapeLayer(size, w, h, d);
+	}
 	else if (parser["dropout"] || parser["gaussdropout"]) {
 		layer = ParseDropoutLayers(size, parser);
 	}
@@ -299,6 +308,11 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	}
 	else if (parser["relu"]) {
 		layer = new ReLULayer(size);
+	}
+	else if (parser["leakyrelu"]) {
+		std::string alpha = parser.Get("alpha", "1");
+
+		layer = new LeakyReLULayer(size, std::stod(alpha));
 	}
 	else if (parser["elu"]) {
 		std::string alpha = parser.Get("alpha", "1");
@@ -401,6 +415,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 	else if (layerType == "identity") {
 		layer = new IdentityLayer(size);
 	}
+	else if (layerType == "identity") {
+		int w, h, d;
+		f >> w >> h >> d;
+
+		layer = new ReshapeLayer(size, w, h, d);
+	}
 	else if (layerType == "sigmoid") {
 		layer = new SigmoidLayer(size);
 	}
@@ -412,6 +432,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 	}
 	else if (layerType == "relu") {
 		layer = new ReLULayer(size);
+	}
+	else if (layerType == "leakyrelu") {
+		double alpha;
+		f >> alpha;
+
+		layer = new LeakyReLULayer(size, alpha);
 	}
 	else if (layerType == "elu") {
 		double alpha;

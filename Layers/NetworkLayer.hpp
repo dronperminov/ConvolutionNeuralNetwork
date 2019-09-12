@@ -24,6 +24,7 @@ public:
 	NetworkLayer(VolumeSize inputSize, int outputWidth, int outputHeight, int outputDeep);
 	NetworkLayer(VolumeSize size);
 
+	VolumeSize GetInputSize() const; // получение размера входа слоя
 	VolumeSize GetOutputSize() const; // получение размера выхода слоя
 
 	std::vector<Volume>& GetOutput();
@@ -65,6 +66,11 @@ NetworkLayer::NetworkLayer(VolumeSize size) {
 	outputSize.width = size.width;
 	outputSize.height = size.height;
 	outputSize.deep = size.deep;
+}
+
+// получение размера входа слоя
+VolumeSize NetworkLayer::GetInputSize() const {
+	return inputSize;
 }
 
 // получение размера выхода слоя
