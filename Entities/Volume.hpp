@@ -58,6 +58,7 @@ public:
 
 	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
 	void Save(const std::string &path, int blockSize = 1) const; // сохранение в виде картинки
+	void Reshape(int width, int height, int deep); // перераспределение размеров объёма
 
 	friend std::ostream& operator<<(std::ostream& os, const Volume &volume);
 };
@@ -208,6 +209,20 @@ void Volume::Save(const std::string &path, int blockSize) const {
 			}
 		}
 	}
+}
+
+// перераспределение размеров объёма
+void Volume::Reshape(int width, int height, int deep) {
+	if (width * height * deep != size.width * size.height * size.deep)
+		throw std::runtime_error("Unable to reshape");
+
+	size.width = width;
+	size.height = height;
+	size.deep = deep;
+
+	whd = width * height * deep;
+	dh = deep * height;
+	dw = deep * width;
 }
 
 std::ostream& operator<<(std::ostream& os, const Volume &volume) {
