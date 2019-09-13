@@ -26,12 +26,12 @@ class Network {
 	std::vector<std::vector<Volume>> inputBatches;
 	std::vector<std::vector<Volume>> outputBatches;
 
-	std::vector<Volume>& Forward(const std::vector<Volume> &input);
+	std::vector<Volume>& Forward(const std::vector<Volume> &input, int start = 0);
 	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize, const std::string augmentation = "");
 	void SetBatchSize(int batchSize); // установка размера батча
 	void ResetCache(); // сброс промежуточных данных
 
-	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer); // обучение батча
+	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer, int start = 0); // обучение батча
 
 public:
 	Network(int width, int height, int deep);
@@ -43,6 +43,10 @@ public:
 
 	VolumeSize GetOutputSize() const; // получение размера выхода сети
 	Volume& GetOutput(const Volume& input); // получение выхода сети
+	std::vector<Volume>& GetOutput(const std::vector<Volume> &inputs); // получение выхода сети
+	std::vector<Volume>& GetOutputAtLayer(const std::vector<Volume> &inputs, int layer); // получение выхода сети на заданном слое
+
+	double TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, LossType lossType, int start = 0);
 	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation = ""); // обучение сети
 	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType); // получение ошибки на заданной выборке без изменения весовых коэффициентов
 	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType); // поиск оптимальной скорости обучения
@@ -67,10 +71,10 @@ Network::Network(const std::string &path) {
 }
 
 // прямое распространение сигналов по сети
-std::vector<Volume>& Network::Forward(const std::vector<Volume> &input) {
-	layers[0]->Forward(input);
+std::vector<Volume>& Network::Forward(const std::vector<Volume> &input, int start) {
+	layers[start]->Forward(input);
 
-	for (size_t i = 1; i < layers.size(); i++)
+	for (size_t i = start + 1; i < layers.size(); i++)
 		layers[i]->Forward(layers[i - 1]->GetOutput());
 
 	return layers[layers.size() - 1]->GetOutput();
@@ -212,12 +216,39 @@ Volume& Network::GetOutput(const Volume& input) {
 	return layers[layers.size() - 1]->GetOutput()[0];
 }
 
+// получение выхода сети
+std::vector<Volume>& Network::GetOutput(const std::vector<Volume> &inputs) {
+	SetBatchSize(inputs.size());
+
+	layers[0]->ForwardOutput(inputs);
+
+	for (size_t i = 1; i < layers.size(); i++)
+		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
+
+	return layers[layers.size() - 1]->GetOutput();
+}
+
+// получение выхода сети на заданном слое
+std::vector<Volume>& Network::GetOutputAtLayer(const std::vector<Volume> &inputs, int layer) {
+	if (layer < 0 || layer >= layers.size())
+		throw std::runtime_error("Invalid layer index");
+
+	SetBatchSize(inputs.size());
+
+	layers[0]->ForwardOutput(inputs);
+
+	for (size_t i = 1; i <= layer; i++)
+		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
+
+	return layers[layer]->GetOutput();
+}
+
 // обучение батча
-double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer) {
+double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer, int start) {
 	size_t size = inputBatch.size();
 	size_t last = layers.size() - 1;
 
-	std::vector<Volume> output = Forward(inputBatch); // получаем выход сети
+	std::vector<Volume> output = Forward(inputBatch, start); // получаем выход сети
 	std::vector<Volume> deltas(size, Volume(outputSize)); // создаём дельты
 
 	double loss = E.CalculateLoss(output, outputBatch, deltas); // расчитываем ошибку
@@ -229,18 +260,25 @@ double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vec
 	else {
 		layers[last]->Backward(deltas, layers[last - 1]->GetOutput(), true);
 
-		for (size_t i = last - 1; i > 0; i--)
+		for (size_t i = last - 1; i > start; i--)
 			layers[i]->Backward(layers[i + 1]->GetDeltas(), layers[i - 1]->GetOutput(), true);
 
-		layers[0]->Backward(layers[1]->GetDeltas(), inputBatch, false);
+		layers[start]->Backward(layers[start + 1]->GetDeltas(), inputBatch, false);
 	}
 
 	// обновляем высовые кожффициенты слоёв
-	for (size_t i = 0; i < layers.size(); i++)
+	for (size_t i = start; i < layers.size(); i++)
 		if (isLearnable[i])
 			layers[i]->UpdateWeights(optimizer);
 
 	return loss; // возвращаем ошибку
+}
+
+double Network::TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, LossType lossType, int start) {
+	LossFunction E(lossType); // создаём функцию ошибки
+	SetBatchSize(inputData.size());
+
+	return TrainBatch(inputData, outputData, E, optimizer, start);
 }
 
 // обучение сети

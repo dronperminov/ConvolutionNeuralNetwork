@@ -27,6 +27,9 @@ errors:
 augmentation:
 	$(COMPILER) $(FLAGS) examples/augmentation_test.cpp -o examples/augmentation
 
+gan:
+	$(COMPILER) $(FLAGS) examples/gan.cpp -o examples/gan
+
 tests:
 	$(COMPILER) $(FLAGS) tests.cpp -o tests
 
