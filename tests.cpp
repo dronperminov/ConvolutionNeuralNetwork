@@ -2,6 +2,7 @@
 #include <cassert>
 
 #include "Layers/ConvLayer.hpp"
+#include "Layers/UpscaleLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
 #include "Layers/AveragePoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
@@ -375,6 +376,88 @@ void ConvLayerTest() {
 	cout << "OK" << endl;
 }
 
+void UpscaleLayerTest() {
+	cout << "Upscale tests: ";
+
+	VolumeSize size;
+	size.deep = 1;
+	size.height = 2;
+	size.width = 2;
+
+	UpscaleLayer layer(size, 2);
+	layer.SetBatchSize(1);
+
+	Volume input(size);
+
+	input(0, 0, 0) = 1;
+	input(0, 0, 1) = 2;
+	input(0, 1, 0) = 3;
+	input(0, 1, 1) = 4;
+
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
+
+	assert(output.Width() == 4);
+	assert(output.Height() == 4);
+	assert(output.Deep() == 1);
+
+	assert(output(0, 0, 0) == 1);
+	assert(output(0, 0, 1) == 1);
+	assert(output(0, 1, 0) == 1);
+	assert(output(0, 1, 1) == 1);
+
+	assert(output(0, 0, 2) == 2);
+	assert(output(0, 0, 3) == 2);
+	assert(output(0, 1, 2) == 2);
+	assert(output(0, 1, 3) == 2);
+
+	assert(output(0, 2, 0) == 3);
+	assert(output(0, 2, 1) == 3);
+	assert(output(0, 3, 0) == 3);
+	assert(output(0, 3, 1) == 3);
+
+	assert(output(0, 2, 2) == 4);
+	assert(output(0, 2, 3) == 4);
+	assert(output(0, 3, 2) == 4);
+	assert(output(0, 3, 3) == 4);
+
+	Volume deltas(output.GetSize());
+
+	deltas(0, 0, 0) = 1;
+	deltas(0, 0, 1) = 2;
+	deltas(0, 1, 0) = 0;
+	deltas(0, 1, 1) = -1;
+
+	deltas(0, 0, 2) = -1;
+	deltas(0, 0, 3) = 2;
+	deltas(0, 1, 2) = 2;
+	deltas(0, 1, 3) = 0;
+
+	deltas(0, 2, 0) = 0;
+	deltas(0, 2, 1) = 0;
+	deltas(0, 3, 0) = 0;
+	deltas(0, 3, 1) = 0;
+
+	deltas(0, 2, 2) = -1;
+	deltas(0, 2, 3) = -2;
+	deltas(0, 3, 2) = -3;
+	deltas(0, 3, 3) = -4;
+
+	layer.Backward({deltas}, {input}, true);
+	Volume& dX = layer.GetDeltas()[0];
+
+	assert(dX.Width() == 2);
+	assert(dX.Height() == 2);
+	assert(dX.Deep() == 1);
+
+	assert(dX(0, 0, 0) == 2);
+	assert(dX(0, 0, 1) == 3);
+	assert(dX(0, 1, 0) == 0);
+	assert(dX(0, 1, 1) == -10);
+
+	cout << "OK" << endl;
+}
+
 void DropoutTest() {
 	cout << "Dropout tests: ";
 	Volume input(1, 1, 10);
@@ -455,6 +538,7 @@ void GradientCheckingTest() {
 
 int main() {
 	ConvLayerTest();
+	UpscaleLayerTest();
 	MaxPoolingLayerTest();
 	AveragePoolingLayerTest();
 	FullyConnectedLayerTest();

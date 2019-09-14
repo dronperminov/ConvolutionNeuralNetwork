@@ -6,6 +6,7 @@
 #include "ConvWithoutStrideLayer.hpp"
 #include "MaxPoolingLayer.hpp"
 #include "AveragePoolingLayer.hpp"
+#include "UpscaleLayer.hpp"
 #include "FullyConnectedLayer.hpp"
 
 #include "ResidualLayer.hpp"
@@ -110,6 +111,25 @@ NetworkLayer* ParsePoolingLayers(VolumeSize size, ArgParser &parser) {
 
 	if (parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"])
 		return new AveragePoolingLayer(size, std::stoi(scale));
+
+	return nullptr;
+}
+
+NetworkLayer* ParseUpscaleLayer(VolumeSize size, ArgParser &parser) {
+	std::string scale = "2";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "scale") {
+			scale = parser.Get(arg);
+		}
+		else if (arg != "upscale" && arg != "unpooling")
+			throw std::runtime_error("Invalid upscale argument '" + arg + "'");
+	}
+
+	if (parser["upscale"] || parser["unpooling"])
+		return new UpscaleLayer(size, std::stoi(scale));
 
 	return nullptr;
 }
@@ -260,6 +280,9 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"] || parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
 		layer = ParsePoolingLayers(size, parser);
 	}
+	else if (parser["upscale"] || parser["unpooling"]) {
+		layer = ParseUpscaleLayer(size, parser);
+	}
 	else if (parser["fc"] || parser["fullconnected"]) {
 		layer = ParseFullyConnectedLayer(size, parser);
 	}
@@ -356,6 +379,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> scale;
 
 		layer = new AveragePoolingLayer(size, scale);
+	}
+	else if (layerType == "upscale") {
+		int scale;
+		f >> scale;
+
+		layer = new UpscaleLayer(size, scale);
 	}
 	else if (layerType == "fc" || layerType == "fullconnected") {
 		int outputs;
