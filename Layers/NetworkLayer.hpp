@@ -88,7 +88,7 @@ std::vector<Volume>& NetworkLayer::GetDeltas() {
 
 // вывод параметров слоя
 void NetworkLayer::PrintConfig() const {
-	std::cout << "| " << std::left << std::setw(14) << name << " | ";
+	std::cout << "| " << std::left << std::setw(16) << name << " | ";
 	std::cout << std::right << std::setw(12) << inputSize.ToString() << " | ";
 	std::cout << std::setw(13) << outputSize.ToString() << " | ";
 	std::cout << std::setw(12) << GetTrainableParams() << " | ";

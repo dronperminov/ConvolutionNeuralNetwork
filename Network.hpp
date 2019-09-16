@@ -184,9 +184,9 @@ void Network::AddBlock(const std::vector<std::vector<std::string>>& blockConf, c
 
 // вывод конфигурации
 void Network::PrintConfig() const {
-	std::cout << "+----------------+--------------+---------------+--------------+----------------------------" << std::endl;
-	std::cout << "|   layer type   |  input size  |  output size  | Train params | configuration: " << std::endl;
-	std::cout << "+----------------+--------------+---------------+--------------+----------------------------" << std::endl;
+	std::cout << "+------------------+--------------+---------------+--------------+----------------------------" << std::endl;
+	std::cout << "|    layer type    |  input size  |  output size  | Train params | configuration: " << std::endl;
+	std::cout << "+------------------+--------------+---------------+--------------+----------------------------" << std::endl;
 
 	int trainable = 0;
 
@@ -195,7 +195,7 @@ void Network::PrintConfig() const {
 		trainable += layers[i]->GetTrainableParams();
 	}
 
-	std::cout << "+----------------+--------------+---------------+--------------+----------------------------" << std::endl;
+	std::cout << "+------------------+--------------+---------------+--------------+----------------------------" << std::endl;
 	std::cout << "Total trainable params: " << trainable << std::endl;
 	std::cout << std::endl;
 }
