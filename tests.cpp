@@ -4,6 +4,7 @@
 #include "Layers/ConvLayer.hpp"
 #include "Layers/ConvTransposedLayer.hpp"
 #include "Layers/UpscaleLayer.hpp"
+#include "Layers/UpscaleBilinearLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
 #include "Layers/AveragePoolingLayer.hpp"
 #include "Layers/FullyConnectedLayer.hpp"
@@ -670,6 +671,88 @@ void UpscaleLayerTest() {
 	cout << "OK" << endl;
 }
 
+void UpscaleBilinearLayerTest() {
+	cout << "Upscale bilinear tests: ";
+
+	VolumeSize size;
+	size.deep = 1;
+	size.height = 2;
+	size.width = 2;
+
+	UpscaleBilinearLayer layer(size, 2);
+	layer.SetBatchSize(1);
+
+	Volume input(size);
+
+	input(0, 0, 0) = 1;
+	input(0, 0, 1) = 2;
+	input(0, 1, 0) = 3;
+	input(0, 1, 1) = 4;
+
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
+
+	assert(output.Width() == 4);
+	assert(output.Height() == 4);
+	assert(output.Deep() == 1);
+
+	assert(output(0, 0, 0) == 1);
+	assert(output(0, 0, 1) == 1.5);
+	assert(output(0, 1, 0) == 2);
+	assert(output(0, 1, 1) == 2.5);
+
+	assert(output(0, 0, 2) == 2);
+	assert(output(0, 0, 3) == 2.5);
+	assert(output(0, 1, 2) == 3);
+	assert(output(0, 1, 3) == 3.5);
+
+	assert(output(0, 2, 0) == 3);
+	assert(output(0, 2, 1) == 3.5);
+	assert(output(0, 3, 0) == 4);
+	assert(output(0, 3, 1) == 4.5);
+
+	assert(output(0, 2, 2) == 4);
+	assert(output(0, 2, 3) == 4.5);
+	assert(output(0, 3, 2) == 5);
+	assert(output(0, 3, 3) == 5.5);
+
+	Volume deltas(output.GetSize());
+
+	deltas(0, 0, 0) = 1;
+	deltas(0, 0, 1) = 2;
+	deltas(0, 1, 0) = 0;
+	deltas(0, 1, 1) = -1;
+
+	deltas(0, 0, 2) = -1;
+	deltas(0, 0, 3) = 2;
+	deltas(0, 1, 2) = 2;
+	deltas(0, 1, 3) = 0;
+
+	deltas(0, 2, 0) = 0;
+	deltas(0, 2, 1) = 0;
+	deltas(0, 3, 0) = 0;
+	deltas(0, 3, 1) = 0;
+
+	deltas(0, 2, 2) = -1;
+	deltas(0, 2, 3) = -2;
+	deltas(0, 3, 2) = -3;
+	deltas(0, 3, 3) = -4;
+
+	layer.Backward({deltas}, {input}, true);
+	Volume& dX = layer.GetDeltas()[0];
+
+	assert(dX.Width() == 2);
+	assert(dX.Height() == 2);
+	assert(dX.Deep() == 1);
+
+	assert(dX(0, 0, 0) == -0.25);
+	assert(dX(0, 0, 1) == 8.25);
+	assert(dX(0, 1, 0) == 3.75);
+	assert(dX(0, 1, 1) == -16.75);
+
+	cout << "OK" << endl;
+}
+
 void DropoutTest() {
 	cout << "Dropout tests: ";
 	Volume input(1, 1, 10);
@@ -757,6 +840,7 @@ int main() {
 	ConvLayerTest();
 	ConvTransposedLayerTest();
 	UpscaleLayerTest();
+	UpscaleBilinearLayerTest();
 	MaxPoolingLayerTest();
 	AveragePoolingLayerTest();
 	FullyConnectedLayerTest();

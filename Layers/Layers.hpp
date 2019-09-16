@@ -8,6 +8,7 @@
 #include "MaxPoolingLayer.hpp"
 #include "AveragePoolingLayer.hpp"
 #include "UpscaleLayer.hpp"
+#include "UpscaleBilinearLayer.hpp"
 #include "FullyConnectedLayer.hpp"
 
 #include "ResidualLayer.hpp"
@@ -172,12 +173,15 @@ NetworkLayer* ParseUpscaleLayer(VolumeSize size, ArgParser &parser) {
 		if (arg == "scale") {
 			scale = parser.Get(arg);
 		}
-		else if (arg != "upscale" && arg != "unpooling")
+		else if (arg != "upscale" && arg != "unpooling" && arg != "upscalebilinear" && arg != "unpoolingbilinear")
 			throw std::runtime_error("Invalid upscale argument '" + arg + "'");
 	}
 
 	if (parser["upscale"] || parser["unpooling"])
 		return new UpscaleLayer(size, std::stoi(scale));
+
+	if (parser["upscalebilinear"] || parser["unpoolingbilinear"])
+		return new UpscaleBilinearLayer(size, std::stoi(scale));
 
 	return nullptr;
 }
@@ -331,7 +335,7 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"] || parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
 		layer = ParsePoolingLayers(size, parser);
 	}
-	else if (parser["upscale"] || parser["unpooling"]) {
+	else if (parser["upscale"] || parser["unpooling"] || parser["upscalebilinear"] || parser["unpoolingbilinear"]) {
 		layer = ParseUpscaleLayer(size, parser);
 	}
 	else if (parser["fc"] || parser["fullconnected"]) {
@@ -442,6 +446,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> scale;
 
 		layer = new UpscaleLayer(size, scale);
+	}
+	else if (layerType == "upscalebilinear") {
+		int scale;
+		f >> scale;
+
+		layer = new UpscaleBilinearLayer(size, scale);
 	}
 	else if (layerType == "fc" || layerType == "fullconnected") {
 		int outputs;
