@@ -71,9 +71,6 @@ NetworkLayer* ParseConvLayer(VolumeSize size, ArgParser &parser) {
 	int pad;
 
 	if (P == "same") {
-		if (S != "1")
-			throw std::runtime_error("Unable to make same padding for stride > 1");
-
 		pad = (std::stoi(fs) - 1) / 2;
 	}
 	else if (P == "valid") {
@@ -90,6 +87,43 @@ NetworkLayer* ParseConvLayer(VolumeSize size, ArgParser &parser) {
 		return new ConvWithoutStrideLayer(size, std::stoi(fc), std::stoi(fs), pad);
 
 	return new ConvLayer(size, std::stoi(fc), std::stoi(fs), pad, std::stoi(S));
+}
+
+// парсинг свёрточного транспонированного слоя
+NetworkLayer* ParseConvTransposedLayer(VolumeSize size, ArgParser &parser) {
+	std::string fs = "";
+	std::string fc = "";
+	std::string S = "1";
+	std::string P = "0";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "filter_size" || arg == "fs") {
+			fs = parser.Get(arg);
+		}
+		else if (arg == "filters" || arg == "fc") {
+			fc = parser.Get(arg);
+		}
+		else if (arg == "S") {
+			S = parser.Get(arg);
+		}
+		else if (arg == "padding" || arg == "P") {
+			P = parser.Get(arg);
+		}
+		else if (arg != "convtransposed" && arg != "deconv" && arg != "deconvolution")
+			throw std::runtime_error("Invalid conv transposed argument '" + arg + "'");
+	}
+
+	if (fc == "")
+		throw std::runtime_error("Unable to add conv transposed layer. Filters count is not set");
+
+	if (fs == "")
+		throw std::runtime_error("Unable to add conv transposed layer. Filters size is not set");
+
+	int pad = std::stoi(P);
+
+	return new ConvTransposedLayer(size, std::stoi(fc), std::stoi(fs), pad, std::stoi(S));
 }
 
 // парсинг слоя пулинга
@@ -277,6 +311,9 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	if (parser["conv"] || parser["convolution"]) {
 		layer = ParseConvLayer(size, parser);
 	}
+	else if (parser["convtransposed"] || parser["deconv"] || parser["deconvolution"]) {
+		layer = ParseConvTransposedLayer(size, parser);
+	}
 	else if (parser["maxpool"] || parser["pooling"] || parser["maxpooling"] || parser["avgpool"] || parser["averagepooling"] || parser["avgpooling"]) {
 		layer = ParsePoolingLayers(size, parser);
 	}
@@ -367,6 +404,12 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 			layer = new ConvWithoutStrideLayer(size, fc, fs, P, f);
 		else
 			layer = new ConvLayer(size, fc, fs, P, S, f);
+	}
+	else if (layerType == "convtransposed" || layerType == "deconvolution") {
+		int fc, fs, P, S;
+		f >> fs >> fc >> P >> S;
+
+		layer = new ConvTransposedLayer(size, fc, fs, P, S, f);
 	}
 	else if (layerType == "maxpool" || layerType == "maxpooling") {
 		int scale;

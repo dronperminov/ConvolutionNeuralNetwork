@@ -2,6 +2,7 @@
 #include <cassert>
 
 #include "Layers/ConvLayer.hpp"
+#include "Layers/ConvTransposedLayer.hpp"
 #include "Layers/UpscaleLayer.hpp"
 #include "Layers/MaxPoolingLayer.hpp"
 #include "Layers/AveragePoolingLayer.hpp"
@@ -376,6 +377,217 @@ void ConvLayerTest() {
 	cout << "OK" << endl;
 }
 
+void ConvTransposedLayerTest() {
+	cout << "Conv transposed tests: ";
+
+	VolumeSize size;
+	size.deep = 3;
+	size.height = 5;
+	size.width = 5;
+
+	ConvTransposedLayer layer(size, 1, 3, 0, 1);
+	layer.SetBatchSize(1);
+
+	Volume input(size);
+	
+	layer.SetWeight(0, 0, 0, 0, 0);
+	layer.SetWeight(0, 0, 0, 1, 1);
+	layer.SetWeight(0, 0, 0, 2, 0);
+
+	layer.SetWeight(0, 0, 1, 0, 0);
+	layer.SetWeight(0, 0, 1, 1, 0);
+	layer.SetWeight(0, 0, 1, 2, 2);
+
+	layer.SetWeight(0, 0, 2, 0, 0);
+	layer.SetWeight(0, 0, 2, 1, 1);
+	layer.SetWeight(0, 0, 2, 2, 0);
+
+
+	layer.SetWeight(0, 1, 0, 0, 2);
+	layer.SetWeight(0, 1, 0, 1, 1);
+	layer.SetWeight(0, 1, 0, 2, 0);
+
+	layer.SetWeight(0, 1, 1, 0, 0);
+	layer.SetWeight(0, 1, 1, 1, 0);
+	layer.SetWeight(0, 1, 1, 2, 0);
+
+	layer.SetWeight(0, 1, 2, 0, 0);
+	layer.SetWeight(0, 1, 2, 1, 3);
+	layer.SetWeight(0, 1, 2, 2, 0);
+
+
+	layer.SetWeight(0, 2, 0, 0, 1);
+	layer.SetWeight(0, 2, 0, 1, 0);
+	layer.SetWeight(0, 2, 0, 2, 0);
+
+	layer.SetWeight(0, 2, 1, 0, 1);
+	layer.SetWeight(0, 2, 1, 1, 0);
+	layer.SetWeight(0, 2, 1, 2, 0);
+
+	layer.SetWeight(0, 2, 2, 0, 0);
+	layer.SetWeight(0, 2, 2, 1, 0);
+	layer.SetWeight(0, 2, 2, 2, 2);
+	
+	layer.SetBias(0, 0);
+
+	input(0, 0, 0) = 1;
+	input(0, 0, 1) = 0;
+	input(0, 0, 2) = 1;
+	input(0, 0, 3) = 0;
+	input(0, 0, 4) = 2;
+
+	input(0, 1, 0) = 1;
+	input(0, 1, 1) = 1;
+	input(0, 1, 2) = 3;
+	input(0, 1, 3) = 2;
+	input(0, 1, 4) = 1;
+
+	input(0, 2, 0) = 1;
+	input(0, 2, 1) = 1;
+	input(0, 2, 2) = 0;
+	input(0, 2, 3) = 1;
+	input(0, 2, 4) = 1;
+
+	input(0, 3, 0) = 2;
+	input(0, 3, 1) = 3;
+	input(0, 3, 2) = 2;
+	input(0, 3, 3) = 1;
+	input(0, 3, 4) = 3;
+
+	input(0, 4, 0) = 0;
+	input(0, 4, 1) = 2;
+	input(0, 4, 2) = 0;
+	input(0, 4, 3) = 1;
+	input(0, 4, 4) = 0;
+
+
+	input(1, 0, 0) = 1;
+	input(1, 0, 1) = 0;
+	input(1, 0, 2) = 0;
+	input(1, 0, 3) = 1;
+	input(1, 0, 4) = 0;
+
+	input(1, 1, 0) = 2;
+	input(1, 1, 1) = 0;
+	input(1, 1, 2) = 1;
+	input(1, 1, 3) = 2;
+	input(1, 1, 4) = 0;
+
+	input(1, 2, 0) = 3;
+	input(1, 2, 1) = 1;
+	input(1, 2, 2) = 1;
+	input(1, 2, 3) = 3;
+	input(1, 2, 4) = 0;
+
+	input(1, 3, 0) = 0;
+	input(1, 3, 1) = 3;
+	input(1, 3, 2) = 0;
+	input(1, 3, 3) = 3;
+	input(1, 3, 4) = 2;
+
+	input(1, 4, 0) = 1;
+	input(1, 4, 1) = 0;
+	input(1, 4, 2) = 3;
+	input(1, 4, 3) = 2;
+	input(1, 4, 4) = 1;
+
+
+	input(2, 0, 0) = 2;
+	input(2, 0, 1) = 0;
+	input(2, 0, 2) = 1;
+	input(2, 0, 3) = 2;
+	input(2, 0, 4) = 1;
+
+	input(2, 1, 0) = 3;
+	input(2, 1, 1) = 3;
+	input(2, 1, 2) = 1;
+	input(2, 1, 3) = 3;
+	input(2, 1, 4) = 2;
+
+	input(2, 2, 0) = 2;
+	input(2, 2, 1) = 1;
+	input(2, 2, 2) = 1;
+	input(2, 2, 3) = 1;
+	input(2, 2, 4) = 0;
+
+	input(2, 3, 0) = 3;
+	input(2, 3, 1) = 1;
+	input(2, 3, 2) = 3;
+	input(2, 3, 3) = 2;
+	input(2, 3, 4) = 0;
+
+	input(2, 4, 0) = 1;
+	input(2, 4, 1) = 1;
+	input(2, 4, 2) = 2;
+	input(2, 4, 3) = 1;
+	input(2, 4, 4) = 1;
+
+	layer.Forward({input});
+	Volume output = layer.GetOutput()[0];
+
+	assert(output.Width() == 7);
+	assert(output.Height() == 7);
+	assert(output.Deep() == 1);
+
+	assert(output(0, 0, 0) == 4);
+	assert(output(0, 0, 1) == 2);
+	assert(output(0, 0, 2) == 1);
+	assert(output(0, 0, 3) == 5);
+	assert(output(0, 0, 4) == 2);
+	assert(output(0, 0, 5) == 2);
+	assert(output(0, 0, 6) == 0);
+
+	assert(output(0, 1, 0) == 9);
+	assert(output(0, 1, 1) == 6);
+	assert(output(0, 1, 2) == 7);
+	assert(output(0, 1, 3) == 13);
+	assert(output(0, 1, 4) == 9);
+	assert(output(0, 1, 5) == 1);
+	assert(output(0, 1, 6) == 4);
+
+	assert(output(0, 2, 0) == 11);
+	assert(output(0, 2, 1) == 14);
+	assert(output(0, 2, 2) == 12);
+	assert(output(0, 2, 3) == 14);
+	assert(output(0, 2, 4) == 17);
+	assert(output(0, 2, 5) == 11);
+	assert(output(0, 2, 6) == 4);
+
+	assert(output(0, 3, 0) == 5);
+	assert(output(0, 3, 1) == 17);
+	assert(output(0, 3, 2) == 19);
+	assert(output(0, 3, 3) == 25);
+	assert(output(0, 3, 4) == 18);
+	assert(output(0, 3, 5) == 14);
+	assert(output(0, 3, 6) == 6);
+
+	assert(output(0, 4, 0) == 6);
+	assert(output(0, 4, 1) == 13);
+	assert(output(0, 4, 2) == 25);
+	assert(output(0, 4, 3) == 21);
+	assert(output(0, 4, 4) == 22);
+	assert(output(0, 4, 5) == 6);
+	assert(output(0, 4, 6) == 6);
+
+	assert(output(0, 5, 0) == 1);
+	assert(output(0, 5, 1) == 3);
+	assert(output(0, 5, 2) == 20);
+	assert(output(0, 5, 3) == 9);
+	assert(output(0, 5, 4) == 17);
+	assert(output(0, 5, 5) == 15);
+	assert(output(0, 5, 6) == 0);
+
+	assert(output(0, 6, 0) == 0);
+	assert(output(0, 6, 1) == 3);
+	assert(output(0, 6, 2) == 4);
+	assert(output(0, 6, 3) == 11);
+	assert(output(0, 6, 4) == 11);
+	assert(output(0, 6, 5) == 5);
+	assert(output(0, 6, 6) == 2);
+
+	cout << "OK" << endl;
+}
+
 void UpscaleLayerTest() {
 	cout << "Upscale tests: ";
 
@@ -517,8 +729,13 @@ void GradientCheckingTest() {
 	Network network(inputSize.width, inputSize.height, inputSize.deep);
 	
 	network.AddLayer("conv filters=16 filter_size=3 P=1");
+	network.AddLayer("relu");
 	network.AddLayer("maxpool");
-	network.AddLayer("conv filters=5 filter_size=3 P=1");
+	network.AddLayer("conv filters=5 filter_size=3 P=1 S=2");
+	network.AddLayer("relu");
+	network.AddLayer("convtransposed filters=5 filter_size=2 P=1 S=2");
+	network.AddLayer("maxpool");
+	network.AddLayer("convtransposed filters=8 filter_size=3 P=1");
 	network.AddLayer("maxpool");
 	network.AddLayer("fullconnected outputs=40 activation=none");
 	network.AddLayer("batchnormalization");
@@ -538,6 +755,7 @@ void GradientCheckingTest() {
 
 int main() {
 	ConvLayerTest();
+	ConvTransposedLayerTest();
 	UpscaleLayerTest();
 	MaxPoolingLayerTest();
 	AveragePoolingLayerTest();
