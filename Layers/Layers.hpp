@@ -4,6 +4,7 @@
 
 #include "ConvLayer.hpp"
 #include "ConvWithoutStrideLayer.hpp"
+#include "ConvTransposedLayer.hpp"
 #include "MaxPoolingLayer.hpp"
 #include "AveragePoolingLayer.hpp"
 #include "UpscaleLayer.hpp"
@@ -121,7 +122,20 @@ NetworkLayer* ParseConvTransposedLayer(VolumeSize size, ArgParser &parser) {
 	if (fs == "")
 		throw std::runtime_error("Unable to add conv transposed layer. Filters size is not set");
 
-	int pad = std::stoi(P);
+	int pad;
+
+	if (P == "same") {
+		pad = (std::stoi(fs) - 1) / 2;
+	}
+	else if (P == "valid") {
+		pad = 0;
+	}
+	else if (P == "full") {
+		pad = std::stoi(fs) - 1;
+	}
+	else {
+		pad = std::stoi(P);
+	}
 
 	return new ConvTransposedLayer(size, std::stoi(fc), std::stoi(fs), pad, std::stoi(S));
 }
