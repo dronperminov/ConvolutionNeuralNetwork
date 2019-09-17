@@ -188,13 +188,13 @@ void ConvTransposedLayer::Backward(const std::vector<Volume> &dout, const std::v
 	for (int f = 0; f < fc; f++) {
 		for (size_t n = 0; n < dout.size(); n++) {
 			for (int y = 0; y < inputSize.height; y++) {
-				for (int i = 0; i < fs; i++) {
-					int k = i + y * S - P;
+				for (int x = 0; x < inputSize.width; x++) {
+					for (int i = 0; i < fs; i++) {
+						int k = i + y * S - P;
 						
-					if (k < 0 || k >= outputSize.height)
-						continue;
+						if (k < 0 || k >= outputSize.height)
+							continue;
 
-					for (int x = 0; x < inputSize.width; x++) {
 						for (int j = 0; j < fs; j++) {
 							int l = j + x * S - P;
 
