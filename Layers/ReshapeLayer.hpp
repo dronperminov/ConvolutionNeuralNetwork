@@ -11,7 +11,7 @@ class ReshapeLayer : public NetworkLayer {
 	int total;
 
 public:
-	ReshapeLayer(VolumeSize size, int width, int height, int deep);
+	ReshapeLayer(VolumeSize size, VolumeSize newSize);
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
@@ -19,8 +19,8 @@ public:
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 };
 
-ReshapeLayer::ReshapeLayer(VolumeSize size, int width, int height, int deep) : NetworkLayer(size, width, height, deep) {
-	if (size.width * size.height * size.deep != width * height * deep)
+ReshapeLayer::ReshapeLayer(VolumeSize size, VolumeSize newSize) : NetworkLayer(size, newSize) {
+	if (size.width * size.height * size.deep != newSize.width * newSize.height * newSize.deep)
 		throw std::runtime_error("Unable to reshape");
 
 	total = size.width * size.height * size.deep;
@@ -50,5 +50,5 @@ void ReshapeLayer::Backward(const std::vector<Volume> &dout, const std::vector<V
 
 // сохранение слоя в файл
 void ReshapeLayer::Save(std::ofstream &f) const {
-	f << "reshape " << inputSize << std::endl;
+	f << "reshape " << inputSize << " " << outputSize << std::endl;
 }

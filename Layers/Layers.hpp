@@ -351,11 +351,12 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 		layer = new IdentityLayer(size);
 	}
 	else if (parser["reshape"]) {
-		int w = std::stoi(parser.Get("width"));
-		int h = std::stoi(parser.Get("height"));
-		int d = std::stoi(parser.Get("deep"));
+		VolumeSize newSize;
+		newSize.width = std::stoi(parser.Get("width"));
+		newSize.height = std::stoi(parser.Get("height"));
+		newSize.deep = std::stoi(parser.Get("deep"));
 
-		layer = new ReshapeLayer(size, w, h, d);
+		layer = new ReshapeLayer(size, newSize);
 	}
 	else if (parser["dropout"] || parser["gaussdropout"]) {
 		layer = ParseDropoutLayers(size, parser);
@@ -511,11 +512,11 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 	else if (layerType == "identity") {
 		layer = new IdentityLayer(size);
 	}
-	else if (layerType == "identity") {
-		int w, h, d;
-		f >> w >> h >> d;
+	else if (layerType == "reshape") {
+		VolumeSize newSize;
+		f >> newSize;
 
-		layer = new ReshapeLayer(size, w, h, d);
+		layer = new ReshapeLayer(size, newSize);
 	}
 	else if (layerType == "sigmoid") {
 		layer = new SigmoidLayer(size);

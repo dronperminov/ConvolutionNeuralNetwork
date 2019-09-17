@@ -22,6 +22,7 @@ protected:
 
 public:
 	NetworkLayer(VolumeSize inputSize, int outputWidth, int outputHeight, int outputDeep);
+	NetworkLayer(VolumeSize size, VolumeSize newSize);
 	NetworkLayer(VolumeSize size);
 
 	VolumeSize GetInputSize() const; // получение размера входа слоя
@@ -56,6 +57,16 @@ NetworkLayer::NetworkLayer(VolumeSize inputSize, int outputWidth, int outputHeig
 	outputSize.width = outputWidth;
 	outputSize.height = outputHeight;
 	outputSize.deep = outputDeep;
+}
+
+NetworkLayer::NetworkLayer(VolumeSize size, VolumeSize newSize) {
+	inputSize.width = size.width;
+	inputSize.height = size.height;
+	inputSize.deep = size.deep;
+
+	outputSize.width = newSize.width;
+	outputSize.height = newSize.height;
+	outputSize.deep = newSize.deep;
 }
 
 NetworkLayer::NetworkLayer(VolumeSize size) {
