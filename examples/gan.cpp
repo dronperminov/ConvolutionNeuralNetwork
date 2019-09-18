@@ -44,6 +44,20 @@ vector<Volume>& GenerateFakeExamples(Network &gan, int randomDim, int batchSize,
 	return gan.GetOutputAtLayer(noise, generatorEnd);
 }
 
+void NormImage(Volume &volume) {
+	int total = volume.Width() * volume.Height() * volume.Deep();
+
+	for (int i = 0; i < total; i++)
+		volume[i] = volume[i] / 127.5 - 1;
+}
+
+void DenormImage(Volume &volume) {
+	int total = volume.Width() * volume.Height() * volume.Deep();
+
+	for (int i = 0; i < total; i++)
+		volume[i] = (volume[i] + 1) * 127.5;
+}
+
 // сохранение сгенерированных картинок  сети
 void SaveExamples(Network &gan, int randomDim, int count, int generatorEnd, int epoch, int w, int h, int d) {
 	vector<Volume>& fakeData = GenerateFakeExamples(gan, randomDim, count, generatorEnd);
@@ -53,6 +67,7 @@ void SaveExamples(Network &gan, int randomDim, int count, int generatorEnd, int 
 
 	for (int i = 0; i < count; i++) {
 		fakeData[i].Reshape(w, h, d);
+		DenormImage(fakeData[i]);
 		fakeData[i].Save(path + "/" + to_string(i), 2);
 	}
 
@@ -71,7 +86,7 @@ int main() {
 	int total = width * height * deep; // общее число пикселей
 
 	int trainCount = 10000; // число обучающих примеров
-	double learningRate = 0.004; // скорость обучения
+	double learningRate = 0.0004; // скорость обучения
 	int randomDim = 10; // размерность шумового входа
 
 	int epochs = 1000; // количество эпох
@@ -88,7 +103,7 @@ int main() {
 	gan.AddLayer("leakyrelu alpha=0.2");
 
 	gan.AddLayer("fc outputs=" + to_string(total));
-	gan.AddLayer("sigmoid");
+	gan.AddLayer("tanh");
 
 	// дискриминатор
 	gan.AddLayer("fc outputs=512");
@@ -103,13 +118,17 @@ int main() {
 
 	gan.PrintConfig(); // выводим конфигурацию сети
 
+	vector<int> generatorLayers = { 0, 1, 2, 3, 4, 5 };
 	vector<int> discriminatorLayers = { 6, 7, 8, 9, 10, 11, 12 };
 	int discriminatorStart = discriminatorLayers[0]; // слой, с которого начинается дискриминатор
 
 	LossType loss = LossType::BinaryCrossEntropy; // функция потерь - бинарная перекрёстная энтропия
 	Optimizer optimizer = Optimizer::Adam(learningRate, 0, 0.5); // оптимизатор
 
-	DataLoader loader(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
+	DataLoader loader(train, width, height, deep, labels, trainCount, 1); // загружаем обучающие данные
+
+	for (int i = 0; i < trainCount; i++)
+		NormImage(loader.trainInputData[i]);
 
 	for (int epoch = 1; epoch <= epochs; epoch++) {
 		double genLoss = 0; // ошибка генератора
@@ -128,12 +147,14 @@ int main() {
 				fakeOutputs[i][0] = 0; // метка сгенерированных картинок - 0
 			}			
 
+			SetTrainable(gan, generatorLayers, false);
 			SetTrainable(gan, discriminatorLayers, true); // включаем обучение дискриминатора
 			disLoss += gan.TrainOnBatch(realData, realOutputs, optimizer, loss, discriminatorStart); // обучаем дискриминатор на реальных изображениях
 			disLoss += gan.TrainOnBatch(fakeData, fakeOutputs, optimizer, loss, discriminatorStart); // обучаем дискриминатор на сгенерированных изображениях
 
 			vector<Volume> noise = GenerateNoise(batchSize, randomDim); // генерируем шум
 
+			SetTrainable(gan, generatorLayers, true);
 			SetTrainable(gan, discriminatorLayers, false); // отключаем обучение дискриминатора
 			genLoss += gan.TrainOnBatch(noise, realOutputs, optimizer, loss); // обучаем генератор
 
