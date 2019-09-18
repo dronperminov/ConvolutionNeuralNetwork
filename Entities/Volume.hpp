@@ -54,11 +54,17 @@ public:
 	int Height() const; // получение высоты
 	int Width() const; // получение ширины
 
+	double Min() const; // минимальное значение
+	double Max() const; // максимальное значение
+	double Mean() const; // среднее значение
+	double StdDev() const; // среднеквадратичное отклонение
+
 	VolumeSize GetSize() const; // получение размера
 
 	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
 	void Save(const std::string &path, int blockSize = 1) const; // сохранение в виде картинки
 	void Reshape(int width, int height, int deep); // перераспределение размеров объёма
+	void PrintParams() const; // вывод параметров
 
 	friend std::ostream& operator<<(std::ostream& os, const Volume &volume);
 };
@@ -130,6 +136,49 @@ int Volume::Width() const {
 	return size.width;
 }
 
+// минимальное значение
+double Volume::Min() const {
+	double min = values[0];
+
+	for (size_t i = 1; i < values.size(); i++)
+		if (values[i] < min)
+			min = values[i];
+
+	return min;
+}
+
+// максимальное значение
+double Volume::Max() const {
+	double max = values[0];
+
+	for (size_t i = 1; i < values.size(); i++)
+		if (values[i] > max)
+			max = values[i];
+
+	return max;
+}
+
+// среднее значение
+double Volume::Mean() const {
+	double sum = 0;
+
+	for (size_t i = 0; i < values.size(); i++)
+		sum += values[i];
+
+	return sum / values.size();
+}
+
+// среднеквадратичное отклонение
+double Volume::StdDev() const {
+	double avg = Mean();
+	double stddev = 0;
+
+	for (size_t i = 0; i < values.size(); i++)
+		stddev += (values[i] - avg) * (values[i] - avg);
+
+	return stddev / values.size();
+}
+
 // получение размера
 VolumeSize Volume::GetSize() const {
 	return size;
@@ -143,17 +192,6 @@ void Volume::FillRandom(GaussRandom& random, double dev, double mean) {
 
 // сохранение в виде картинки
 void Volume::Save(const std::string &path, int blockSize) const {
-	double min = values[0];
-	double max = values[0];
-
-	for (size_t i = 0; i < values.size(); i++) {
-		if (values[i] < min)
-			min = values[i];
-
-		if (values[i] > max)
-			max = values[i];
-	}
-
 	int width = size.width * blockSize;
 	int height = size.height * blockSize;
 
@@ -161,7 +199,7 @@ void Volume::Save(const std::string &path, int blockSize) const {
 		BitmapImage image(blockSize, size.deep * blockSize);
 
 		for (int d = 0; d < size.deep; d++) {
-			int value = (values[d] - min) / (max - min) * 255;
+			int value = std::min(255.0, std::max(0.0, values[d]));
 
 			for (int i = 0; i < blockSize; i++)
 				for (int j = 0; j < blockSize; j++)
@@ -175,9 +213,9 @@ void Volume::Save(const std::string &path, int blockSize) const {
 
 		for (int y = 0; y < size.height; y++) {
 			for (int x = 0; x < size.width; x++) {
-				int r = (At(0, y, x) - min) / (max - min) * 255;
-				int g = (At(1, y, x) - min) / (max - min) * 255;
-				int b = (At(2, y, x) - min) / (max - min) * 255;
+				int r = std::min(255.0, std::max(0.0, At(0, y, x)));
+				int g = std::min(255.0, std::max(0.0, At(1, y, x)));
+				int b = std::min(255.0, std::max(0.0, At(2, y, x)));
 
 				for (int i = 0; i < blockSize; i++)
 					for (int j = 0; j < blockSize; j++)
@@ -193,7 +231,7 @@ void Volume::Save(const std::string &path, int blockSize) const {
 
 			for (int y = 0; y < size.height; y++) {
 				for (int x = 0; x < size.width; x++) {
-					int br = (At(d, y, x) - min) / (max - min) * 255;
+					int br = std::min(255.0, std::max(0.0, At(d, y, x)));
 					
 					for (int i = 0; i < blockSize; i++)
 						for (int j = 0; j < blockSize; j++)
@@ -223,6 +261,15 @@ void Volume::Reshape(int width, int height, int deep) {
 	whd = width * height * deep;
 	dh = deep * height;
 	dw = deep * width;
+}
+
+// вывод параметров
+void Volume::PrintParams() const {
+	std::cout << "Volume " << size << std::endl;
+	std::cout << "Min: " << Min() << std::endl;
+	std::cout << "Max: " << Max() << std::endl;
+	std::cout << "Mean: " << Mean() << std::endl;
+	std::cout << "Std.dev: " << StdDev() << std::endl;
 }
 
 std::ostream& operator<<(std::ostream& os, const Volume &volume) {
