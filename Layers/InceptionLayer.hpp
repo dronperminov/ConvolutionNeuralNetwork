@@ -25,7 +25,7 @@ public:
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache();
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -151,9 +151,9 @@ void InceptionLayer::Backward(const std::vector<Volume> &dout, const std::vector
 }
 
 // обновление весовых коэффициентов
-void InceptionLayer::UpdateWeights(const Optimizer &optimizer) {
+void InceptionLayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	for (size_t i = 0; i < convs.size(); i++)
-		convs[i]->UpdateWeights(optimizer);
+		convs[i]->UpdateWeights(optimizer, trainable);
 }
 
 void InceptionLayer::ResetCache() {

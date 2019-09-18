@@ -58,7 +58,7 @@ public:
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache();
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -343,10 +343,10 @@ void NetworkBlock::Backward(const std::vector<Volume> &dout, const std::vector<V
 }
 
 // обновление весовых коэффициентов
-void NetworkBlock::UpdateWeights(const Optimizer &optimizer) {
+void NetworkBlock::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	for (size_t i = 0; i < blocks.size(); i++)
 		for (size_t j = 0; j < blocks[i].size(); j++)
-			blocks[i][j]->UpdateWeights(optimizer);
+			blocks[i][j]->UpdateWeights(optimizer, trainable);
 }
 
 void NetworkBlock::ResetCache() {

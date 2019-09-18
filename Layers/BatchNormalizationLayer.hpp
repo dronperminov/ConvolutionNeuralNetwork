@@ -38,7 +38,7 @@ public:
 	void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache(); // сброс параметров
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -184,11 +184,13 @@ void BatchNormalizationLayer::Backward(const std::vector<Volume> &dout, const st
 }
 
 // обновление весовых коэффициентов
-void BatchNormalizationLayer::UpdateWeights(const Optimizer &optimizer) {
+void BatchNormalizationLayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	#pragma omp parallel for
 	for (int i = 0; i < total; i++) {
-		optimizer.Update(dbeta[i], paramsbeta[0][i], paramsbeta[1][i], paramsbeta[2][i], beta[i]);
-		optimizer.Update(dgamma[i], paramsgamma[0][i], paramsgamma[1][i], paramsgamma[2][i], gamma[i]);
+		if (trainable) {
+			optimizer.Update(dbeta[i], paramsbeta[0][i], paramsbeta[1][i], paramsbeta[2][i], beta[i]);
+			optimizer.Update(dgamma[i], paramsgamma[0][i], paramsgamma[1][i], paramsgamma[2][i], gamma[i]);
+		}
 
 		dbeta[i] = 0;
 		dgamma[i] = 0;

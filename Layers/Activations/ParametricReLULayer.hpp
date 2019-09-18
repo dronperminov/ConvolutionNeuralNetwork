@@ -25,7 +25,7 @@ public:
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache(); // сброс параметров
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -113,11 +113,13 @@ void ParametricReLULayer::Backward(const std::vector<Volume> &dout, const std::v
 }
 
 // обновление весовых коэффициентов
-void ParametricReLULayer::UpdateWeights(const Optimizer &optimizer) {
+void ParametricReLULayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	int batchSize = output.size();
 
 	for (int i = 0; i < total; i++) {
-		optimizer.Update(dalpha[i] / batchSize, paramsalpha[0][i], paramsalpha[1][i], paramsalpha[2][i], alpha[i]);
+		if (trainable)
+			optimizer.Update(dalpha[i] / batchSize, paramsalpha[0][i], paramsalpha[1][i], paramsalpha[2][i], alpha[i]);
+
 		dalpha[i] = 0;
 	}
 }

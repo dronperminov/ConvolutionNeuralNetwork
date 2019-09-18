@@ -37,7 +37,7 @@ public:
 	virtual void ForwardOutput(const std::vector<Volume> &X); // прямое распространение
 	virtual void Forward(const std::vector<Volume> &X) = 0; // прямое распространение
 	virtual void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX) = 0; // обратное распространение
-	virtual void UpdateWeights(const Optimizer &optimizer) {} // обновление весовых коэффициентов
+	virtual void UpdateWeights(const Optimizer &optimizer, bool trainable) {} // обновление весовых коэффициентов
 	
 	virtual void ResetCache() {}
 	virtual void Save(std::ofstream &f) const = 0; // сохранение слоя в файл

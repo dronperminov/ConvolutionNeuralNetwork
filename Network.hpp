@@ -41,8 +41,11 @@ public:
 	void AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string mergeType = "sum"); // добавление блока
 	void PrintConfig() const; // вывод конфигурации
 
+	int LayersCount() const; // количество слоёв
 	VolumeSize GetOutputSize() const; // получение размера выхода сети
 	Volume& GetOutput(const Volume& input); // получение выхода сети
+
+	std::vector<Volume>& GetOutput(); // получение текущего выхода сети
 	std::vector<Volume>& GetOutput(const std::vector<Volume> &inputs); // получение выхода сети
 	std::vector<Volume>& GetOutputAtLayer(const std::vector<Volume> &inputs, int layer); // получение выхода сети на заданном слое
 
@@ -58,6 +61,7 @@ public:
 	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
 
 	void GradientChecking(const std::vector<Volume> &input, const std::vector<Volume> &output, LossType lossType); // численная проверка расчёта градиентов
+	void PrintGradientsStats();
 };
 
 Network::Network(int width, int height, int deep) {
@@ -200,6 +204,11 @@ void Network::PrintConfig() const {
 	std::cout << std::endl;
 }
 
+// количество слоёв
+int Network::LayersCount() const {
+	return layers.size();
+}
+
 // получение размера выхода сети
 VolumeSize Network::GetOutputSize() const {
 	return outputSize;
@@ -214,6 +223,11 @@ Volume& Network::GetOutput(const Volume& input) {
 		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
 
 	return layers[layers.size() - 1]->GetOutput()[0];
+}
+
+// получение текущего выхода сети
+std::vector<Volume>& Network::GetOutput() {
+	return layers[layers.size() - 1]->GetOutput();
 }
 
 // получение выхода сети
@@ -268,8 +282,7 @@ double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vec
 
 	// обновляем высовые кожффициенты слоёв
 	for (size_t i = start; i < layers.size(); i++)
-		if (isLearnable[i])
-			layers[i]->UpdateWeights(optimizer);
+		layers[i]->UpdateWeights(optimizer, isLearnable[i]);
 
 	return loss; // возвращаем ошибку
 }
@@ -505,4 +518,37 @@ void Network::GradientChecking(const std::vector<Volume> &inputData, const std::
 	}
 
 	std::cout << "Gradient checking: OK" << std::endl;
+}
+
+// вывод статистики по градиентам
+void Network::PrintGradientsStats() {
+	std::cout << "+-------+---------------+---------------+" << std::endl;
+	std::cout << "| layer |      min      |      max      |" << std::endl;
+	std::cout << "+-------+---------------+---------------+" << std::endl;
+
+	for (size_t i = 0; i < layers.size(); i++) {
+		std::vector<Volume> &dX = layers[i]->GetDeltas();
+
+		double min = dX[0].Min();
+		double max = dX[0].Max();
+
+		for (size_t j = 1; j < dX.size(); j++) {
+			double minValue = dX[j].Min();
+			double maxValue = dX[j].Max();
+
+			if (minValue < min)
+				min = minValue;
+
+			if (maxValue > max)
+				max = maxValue;
+		}
+
+		std::cout << "| " << std::setw(5) << (i + 1) << " | ";
+		std::cout << std::setw(13) << min << " | ";
+		std::cout << std::setw(13) << max << " |";
+		std::cout << std::endl;
+	}
+
+	std::cout << "+-------+---------------+---------------+" << std::endl;
+
 }

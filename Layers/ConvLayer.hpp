@@ -35,7 +35,7 @@ public:
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache(); // сброс параметров
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -249,18 +249,22 @@ void ConvLayer::Backward(const std::vector<Volume> &dout, const std::vector<Volu
 }
 
 // обновление весовых коэффициентов
-void ConvLayer::UpdateWeights(const Optimizer &optimizer) {
+void ConvLayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	int batchSize = output.size();
 	int total = fd * fs * fs;
 
 	#pragma omp parallel for
 	for (int index = 0; index < fc; index++) {
 		for (int i = 0; i < total; i++) {
-			optimizer.Update(dW[index][i] / batchSize, paramsW[0][index][i], paramsW[1][index][i], paramsW[2][index][i], W[index][i]);
+			if (trainable)
+				optimizer.Update(dW[index][i] / batchSize, paramsW[0][index][i], paramsW[1][index][i], paramsW[2][index][i], W[index][i]);
+
 			dW[index][i] = 0;
 		}
 
-		optimizer.Update(db[index] / batchSize, paramsb[0][index], paramsb[1][index], paramsb[2][index], b[index]);
+		if (trainable)
+			optimizer.Update(db[index] / batchSize, paramsb[0][index], paramsb[1][index], paramsb[2][index], b[index]);
+
 		db[index] = 0;
 	}
 }

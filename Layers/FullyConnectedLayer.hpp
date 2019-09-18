@@ -51,7 +51,7 @@ public:
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache(); // сброс параметров
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -269,17 +269,21 @@ void FullyConnectedLayer::Backward(const std::vector<Volume> &dout, const std::v
 }
 
 // обновление весовых коэффициентов
-void FullyConnectedLayer::UpdateWeights(const Optimizer &optimizer) {
+void FullyConnectedLayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	int batchSize = output.size();
 
 	#pragma omp parallel for
 	for (int i = 0; i < outputs; i++) {
 		for (int j = 0; j < inputs; j++) {
-			optimizer.Update(dW(i, j) / batchSize, paramsW[0](i, j), paramsW[1](i, j), paramsW[2](i, j), W(i, j));
+			if (trainable)
+				optimizer.Update(dW(i, j) / batchSize, paramsW[0](i, j), paramsW[1](i, j), paramsW[2](i, j), W(i, j));
+
 			dW(i, j) = 0;
 		}
 
-		optimizer.Update(db[i] / batchSize, paramsb[0][i], paramsb[1][i], paramsb[2][i], b[i]);
+		if (trainable)
+			optimizer.Update(db[i] / batchSize, paramsb[0][i], paramsb[1][i], paramsb[2][i], b[i]);
+
 		db[i] = 0;
 	}
 }

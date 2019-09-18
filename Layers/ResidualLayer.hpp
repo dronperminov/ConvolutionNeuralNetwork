@@ -24,7 +24,7 @@ public:
 
 	void Forward(const std::vector<Volume> &X); // прямое распространение
 	void Backward(const std::vector<Volume> &dout, const std::vector<Volume> &X, bool calc_dX); // обратное распространение
-	void UpdateWeights(const Optimizer &optimizer); // обновление весовых коэффициентов
+	void UpdateWeights(const Optimizer &optimizer, bool trainable); // обновление весовых коэффициентов
 
 	void ResetCache();
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
@@ -188,12 +188,12 @@ void ResidualLayer::Backward(const std::vector<Volume> &dout, const std::vector<
 }
 
 // обновление весовых коэффициентов
-void ResidualLayer::UpdateWeights(const Optimizer &optimizer) {
+void ResidualLayer::UpdateWeights(const Optimizer &optimizer, bool trainable) {
 	for (size_t i = 0; i < convBlock.size(); i++)
-		convBlock[i]->UpdateWeights(optimizer);
+		convBlock[i]->UpdateWeights(optimizer, trainable);
 
 	if (skipBlock)
-		skipBlock->UpdateWeights(optimizer);
+		skipBlock->UpdateWeights(optimizer, trainable);
 }
 
 void ResidualLayer::ResetCache() {
