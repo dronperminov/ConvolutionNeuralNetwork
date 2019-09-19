@@ -5,11 +5,15 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <random>
 
 #include "NetworkLayer.hpp"
 #include "../Entities/Matrix.hpp"
 
 class FullyConnectedLayer : public NetworkLayer {
+	std::default_random_engine generator;
+	std::normal_distribution<double> distribution;
+
 	// тип активационной функции
 	enum class ActivationType {
 		None,
@@ -66,7 +70,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs), distribution(0.0, sqrt(2.0 / (size.height * size.width * size.deep))) {
 	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 
@@ -82,7 +86,7 @@ FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std
 	InitWeights();
 }
 
-FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs) {
+FullyConnectedLayer::FullyConnectedLayer(VolumeSize size, int outputs, const std::string& type, std::ifstream &f) : NetworkLayer(size, 1, 1, outputs), W(outputs, size.height * size.width * size.deep), dW(outputs, size.height * size.width * size.deep), b(outputs), db(outputs), distribution(0.0, sqrt(2.0 / (size.height * size.width * size.deep))) {
 	this->inputs = size.height * size.width * size.deep;
 	this->outputs = outputs;
 
@@ -110,7 +114,7 @@ void FullyConnectedLayer::InitParams() {
 void FullyConnectedLayer::InitWeights() {
 	for (int i = 0; i < outputs; i++) {
 		for (int j = 0; j < inputs; j++)
-			W(i, j) = random.Next(sqrt(2.0 / inputs), 0);
+			W(i, j) = distribution(generator);
 
 		b[i] = 0.01;
 	}

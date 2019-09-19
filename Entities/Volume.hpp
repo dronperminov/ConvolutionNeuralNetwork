@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 
-#include "GaussRandom.hpp"
 #include "Bitmap.hpp"
 
 // размерность объёма
@@ -61,7 +60,6 @@ public:
 
 	VolumeSize GetSize() const; // получение размера
 
-	void FillRandom(GaussRandom& random, double dev, double mean = 0); // заполнение случайными числами
 	void Save(const std::string &path, int blockSize = 1) const; // сохранение в виде картинки
 	void Reshape(int width, int height, int deep); // перераспределение размеров объёма
 	void PrintParams() const; // вывод параметров
@@ -182,12 +180,6 @@ double Volume::StdDev() const {
 // получение размера
 VolumeSize Volume::GetSize() const {
 	return size;
-}
-
-// заполнение случайными числами
-void Volume::FillRandom(GaussRandom& random, double dev, double mean) {
-	for (int i = 0; i < whd; i++)
-		values[i] = random.Next(dev, mean);
 }
 
 // сохранение в виде картинки

@@ -9,8 +9,6 @@
 
 class NetworkLayer {
 protected:
-	GaussRandom random; // генератор случайных чисел с нормальным распределением
-
 	VolumeSize inputSize;
 	VolumeSize outputSize;
 

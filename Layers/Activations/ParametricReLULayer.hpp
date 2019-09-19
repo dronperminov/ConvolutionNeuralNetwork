@@ -4,10 +4,14 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 
 #include "../NetworkLayer.hpp"
 
 class ParametricReLULayer : public NetworkLayer {
+	std::default_random_engine generator;
+	std::normal_distribution<double> distribution;
+
 	int total;
 	Volume alpha;
 	Volume dalpha;
@@ -36,7 +40,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep), distribution(0.0, 0.01) {
 	total = size.width * size.height * size.deep;
 
 	InitParams();
@@ -46,7 +50,7 @@ ParametricReLULayer::ParametricReLULayer(VolumeSize size) : NetworkLayer(size), 
 	info = "";
 }
 
-ParametricReLULayer::ParametricReLULayer(VolumeSize size, std::ifstream &f) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep) {
+ParametricReLULayer::ParametricReLULayer(VolumeSize size, std::ifstream &f) : NetworkLayer(size), alpha(1, 1, size.width * size.height * size.deep), dalpha(1, 1, size.width * size.height * size.deep), distribution(0.0, 0.01) {
 	total = size.width * size.height * size.deep;
 
 	InitParams();
@@ -65,7 +69,7 @@ void ParametricReLULayer::InitParams() {
 // инициализация весовых коэффициентов
 void ParametricReLULayer::InitWeights() {
 	for (int i = 0; i < total; i++)
-		alpha[i] = random.Next(0.01, 0);
+		alpha[i] = distribution(generator);
 }
 
 // считывание весовых коэффициентов из файла

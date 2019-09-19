@@ -4,10 +4,14 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 
 #include "NetworkLayer.hpp"
 
 class ConvWithoutStrideLayer : public NetworkLayer {
+	std::default_random_engine generator;
+	std::normal_distribution<double> distribution;
+
 	std::vector<Volume> W; // фильтры
 	std::vector<Volume> dW; // градиенты фильтров
 	std::vector<std::vector<Volume>> paramsW; // параметры фильтров
@@ -49,7 +53,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc) {
+ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc), distribution(0.0, sqrt(2.0 / (fs*fs*size.deep))) {
 	this->P = P;
 
 	this->fc = fc;
@@ -71,7 +75,7 @@ ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, 
 	InitWeights();
 }
 
-ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P, std::ifstream &f) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc) {
+ConvWithoutStrideLayer::ConvWithoutStrideLayer(VolumeSize size, int fc, int fs, int P, std::ifstream &f) : NetworkLayer(size, size.width - fs + 2 * P + 1, size.height - fs + 2 * P + 1, fc), distribution(0.0, sqrt(2.0 / (fs*fs*size.deep))) {
 	this->P = P;
 
 	this->fc = fc;
@@ -107,7 +111,7 @@ void ConvWithoutStrideLayer::InitWeights() {
 		for (int i = 0; i < fs; i++)
 			for (int j = 0; j < fs; j++)
 				for (int k = 0; k < fd; k++)
-					W[index](k, i, j) = random.Next(sqrt(2.0 / (fs*fs*fd)), 0);
+					W[index](k, i, j) = distribution(generator);
 
 		b[index] = 0.01;
 	}

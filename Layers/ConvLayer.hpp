@@ -4,10 +4,14 @@
 #include <fstream>
 #include <iomanip>
 #include <vector>
+#include <random>
 
 #include "NetworkLayer.hpp"
 
 class ConvLayer : public NetworkLayer {
+	std::default_random_engine generator;
+	std::normal_distribution<double> distribution;
+
 	std::vector<Volume> W; // фильтры
 	std::vector<Volume> dW; // градиенты фильтров
 	std::vector<std::vector<Volume>> paramsW; // параметры фильтров
@@ -50,7 +54,7 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc), distribution(0.0, sqrt(2.0 / (fs*fs*size.deep))) {
 	this->P = P;
 	this->S = S;
 
@@ -73,7 +77,7 @@ ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S) : NetworkLay
 	InitWeights();
 }
 
-ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc) {
+ConvLayer::ConvLayer(VolumeSize size, int fc, int fs, int P, int S, std::ifstream &f) : NetworkLayer(size, (size.width - fs + 2 * P) / S + 1, (size.height - fs + 2 * P) / S + 1, fc), distribution(0.0, sqrt(2.0 / (fs*fs*size.deep))) {
 	this->P = P;
 	this->S = S;
 
@@ -110,7 +114,7 @@ void ConvLayer::InitWeights() {
 		for (int i = 0; i < fs; i++)
 			for (int j = 0; j < fs; j++)
 				for (int k = 0; k < fd; k++)
-					W[index](k, i, j) = random.Next(sqrt(2.0 / (fs*fs*fd)), 0);
+					W[index](k, i, j) = distribution(generator);
 
 		b[index] = 0.01;
 	}

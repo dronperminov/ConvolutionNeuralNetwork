@@ -796,7 +796,8 @@ void GradientCheckingTest() {
 
 	int batchSize = 3;
 
-	GaussRandom random;
+	default_random_engine generator;
+	std::normal_distribution<double> distribution(0.0, 1.0);
 
 	vector<Volume> inputs;
 	vector<Volume> outputs;
@@ -805,8 +806,11 @@ void GradientCheckingTest() {
 		inputs.push_back(Volume(inputSize));
 		outputs.push_back(Volume(outputSize));
 
-		inputs[i].FillRandom(random, 1);
-		outputs[i].FillRandom(random, 1);
+		for (int j = 0; j < inputSize.width * inputSize.height * inputSize.deep; j++)
+			inputs[i][j] = distribution(generator);
+
+		for (int j = 0; j < outputSize.width * outputSize.height * outputSize.deep; j++)
+			outputs[i][j] = distribution(generator);
 	}
 
 	Network network(inputSize.width, inputSize.height, inputSize.deep);
