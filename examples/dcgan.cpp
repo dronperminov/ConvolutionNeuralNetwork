@@ -138,7 +138,7 @@ int main() {
 	int trainCount = 1024; // число обучающих примеров
 	int randomDim = 100; // размерность шумового входа
 
-	int epochs = 1000; // количество эпох
+	int epochs = 10000; // количество эпох
 	int batchSize = 128; // размер батча
 
 	int halfBatch = batchSize / 2;
@@ -154,7 +154,7 @@ int main() {
 	LossType loss = LossType::BinaryCrossEntropy; // функция потерь - бинарная перекрёстная энтропия
 	
 	Optimizer genOptimizer = Optimizer::Adam(0.004, 0, 0.5); // оптимизатор
-	Optimizer disOptimizer = Optimizer::Adam(0.003, 0, 0.5); // оптимизатор
+	Optimizer disOptimizer = Optimizer::Adam(0.005, 0, 0.5); // оптимизатор
 
 	DataLoader loader(train, width, height, deep, labels, trainCount, 1); // загружаем обучающие данные
 
@@ -167,6 +167,10 @@ int main() {
 		int passed = 0; // количество просмотренных изображений
 
 		TimePoint t0 = Time::now();
+
+		cout << "+---------+-----------+-----------+----------+-----------+-----------+-----------+-------------+-------------+" << endl;
+		cout << "|  batch  | real loss | fake loss | gen loss | real acc. | fake acc. |  gan acc. |  left time  | total time  |" << endl;
+		cout << "+---------+-----------+-----------+----------+-----------+-----------+-----------+-------------+-------------+" << endl;
 
 		for (int batch = 0; batch < batchCount; batch++) {
 			vector<Volume> realData = GenerateRealExamples(loader.trainInputData, halfBatch); // выбираем случайные реальные картинки
@@ -183,7 +187,7 @@ int main() {
 			}
 
 			for (int i = 0; i < batchSize; i++)
-				genOutputs[i][0] = 1; // метка изображений генератора
+				genOutputs[i][0] = 0.9 + distribution(generator) / 10.0; // метка изображений генератора
 
 			SetTrainable(gan, 0, endGenerator, false);
 			SetTrainable(gan, endGenerator, endDiscriminator, true);
@@ -198,6 +202,7 @@ int main() {
 			SetTrainable(gan, endGenerator, endDiscriminator, false);
 			
 			double ganLoss = gan.TrainOnBatch(noise, genOutputs, genOptimizer, loss) / batchSize; // обучаем генератор
+			double ganAcc = Accuracy(gan.GetOutput(), genOutputs);
 
 			disLoss += (disLoss1 + disLoss2) / 2;
 			genLoss += ganLoss;
@@ -209,14 +214,20 @@ int main() {
 			double dt = (double) d.count() / passed;
 			double t = (batchSize * batchCount - passed) * dt;
 
-			cout << batch << "/" << batchCount;
-			cout << "\tdis (real): " << disLoss1 << " " << realAcc * 100 << "%";
-			cout << "\tdis (fake): " << disLoss2 << " " << fakeAcc * 100 << "%";
-			cout << "\tgen: " << ganLoss;
-			cout << "\tleft: " << TimeSpan(t);
-			cout << ", total time: " << TimeSpan(dt * batchSize * batchCount) << "\n";
+			cout << setfill(' ');
+			cout << "| " << setw(3) << (batch + 1) << "/" << setw(3) << left << batchCount << " | ";
+			cout << setw(9) << right << disLoss1 << " | ";
+			cout << setw(9) << disLoss2 << " | ";
+			cout << setw(8) << ganLoss << " | ";
+			cout << setw(8) << realAcc * 100 << "% | ";
+			cout << setw(8) << fakeAcc * 100 << "% | ";
+			cout << setw(8) << ganAcc * 100 << "% | ";
+			cout << TimeSpan(t) << " | ";
+			cout << TimeSpan(dt * batchSize * batchCount) << " |" << endl;
+
 		}
 
+		cout << "+---------+-----------+-----------+----------+-----------+-----------+-----------+-------------+-------------+" << endl;
 		cout << "epoch " << epoch << ", dis loss: " << disLoss / batchCount << ", gen loss: " << genLoss / batchCount << endl;
 
 		if (epoch < 10 || epoch % 5 == 0)
