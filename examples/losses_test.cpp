@@ -49,9 +49,11 @@ int main() {
 		networks.push_back(Network(width, height, deep));
 
 		networks[i].AddLayer("conv filter_size=5 filters=16");
+		networks[i].AddLayer("relu");
 		networks[i].AddLayer("maxpool");
 
 		networks[i].AddLayer("conv filter_size=5 filters=32");
+		networks[i].AddLayer("relu");
 		networks[i].AddLayer("maxpool");
 		networks[i].AddLayer("batchnormalization2D");
 

@@ -24,15 +24,19 @@ int main() {
 	Network network(width, height, deep);
 	
 	network.AddLayer("conv filter_size=3 filters=16");
+	network.AddLayer("relu");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("conv filter_size=3 filters=16");
+	network.AddLayer("relu");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
 
 	network.AddLayer("conv filter_size=3 filters=32");
+	network.AddLayer("relu");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("conv filter_size=3 filters=32");
+	network.AddLayer("relu");
 	network.AddLayer("batchnormalization2D");
 	network.AddLayer("maxpool");
 	network.AddLayer("dropout p=0.4");
