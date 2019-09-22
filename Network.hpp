@@ -39,6 +39,7 @@ public:
 
 	void AddLayer(const std::string& layerConf); // добавление слоя по текстовому описанию
 	void AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string mergeType = "sum"); // добавление блока
+	void RemoveLayer(int layer); // удаление слоя
 	void PrintConfig() const; // вывод конфигурации
 
 	int LayersCount() const; // количество слоёв
@@ -184,6 +185,33 @@ void Network::AddBlock(const std::vector<std::vector<std::string>>& blockConf, c
 	isLearnable.push_back(true);
 
 	outputSize = block->GetOutputSize();
+}
+
+// удаление слоя
+void Network::RemoveLayer(int layer) {
+	if (layer < 0 || layer >= layers.size())
+		throw std::runtime_error("Invalid layer for remove");
+
+	if (layer > 0 && layer < layers.size() - 1) {
+		VolumeSize prev = layers[layer - 1]->GetOutputSize();
+		VolumeSize next = layers[layer + 1]->GetInputSize();
+
+		if (prev.width != next.width || prev.height != next.height || prev.deep != next.deep)
+			throw std::runtime_error("Unable to remove layer. Sizes incorrect");
+	}
+
+	layers.erase(layers.begin() + layer); // удаляем слой
+
+	// если слоёв не осталось
+	if (layers.size() == 0) {
+		outputSize = inputSize; // выходной размер равен входному
+	}
+	else if (layer == 0) {
+		inputSize = layers[0]->GetInputSize(); // обновляем входной размер
+	}
+	else if (layer == layers.size()) {
+		outputSize = layers[layer - 1]->GetOutputSize(); // обновляем выходной размер
+	}
 }
 
 // вывод конфигурации
