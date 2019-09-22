@@ -59,6 +59,8 @@ public:
 	double StdDev() const; // среднеквадратичное отклонение
 
 	VolumeSize GetSize() const; // получение размера
+	Volume Resize(int newWidth, int newHeight); // билинейное масштабирование
+	Volume ResizeBicubic(int newWidth, int newHeight); // бикубическое масштабирование
 
 	void Save(const std::string &path, int blockSize = 1) const; // сохранение в виде картинки
 	void Reshape(int width, int height, int deep); // перераспределение размеров объёма
@@ -180,6 +182,103 @@ double Volume::StdDev() const {
 // получение размера
 VolumeSize Volume::GetSize() const {
 	return size;
+}
+
+// билинейное масштабирование
+Volume Volume::Resize(int newWidth, int newHeight) {
+	Volume result(newWidth, newHeight, size.deep);
+
+	double wscale = (newWidth - 1.0) / (size.width - 1.0);
+	double hscale = (newHeight - 1.0) / (size.height - 1.0);
+
+	for (int i = 0; i < newHeight; i++) {
+		int y = std::min(int(i / hscale), size.height - 2);
+		double dy = (i / hscale) - y;
+
+		for (int j = 0; j < newWidth; j++) {
+			int x = std::min(int(j / wscale), size.width - 2);
+			double dx = (j / wscale) - x;
+
+			double b0 = (1 - dx) * (1 - dy);
+			double b1 = dx * (1 - dy);
+			double b2 = (1 - dx) * dy;
+			double b3 = dx * dy;
+
+			for (int d = 0; d < size.deep; d++) {
+				double sum = 0;
+
+				sum += b0 * At(d, y, x);
+				sum += b1 * At(d, y, x + 1);
+				sum += b2 * At(d, y + 1, x);
+				sum += b3 * At(d, y + 1, x + 1);
+
+				result(d, i, j) = sum;
+			}
+		}
+	}
+
+	return result;
+}
+
+// бикубическое масштабирование
+Volume Volume::ResizeBicubic(int newWidth, int newHeight) {
+	Volume result(newWidth, newHeight, size.deep);
+
+	double wscale = (newWidth - 1.0) / (size.width - 1.0);
+	double hscale = (newHeight - 1.0) / (size.height - 1.0);
+
+	for (int i = 0; i < newHeight; i++) {
+		int y = std::max(1, std::min(int(i / hscale), size.height - 3));
+		double dy = (i / hscale) - y;
+
+		for (int j = 0; j < newWidth; j++) {
+			int x = std::max(1, std::min(int(j / wscale), size.width - 3));
+			double dx = (j / wscale) - x;
+
+			double b[16];
+			b[0] = 1.0 / 4 * (dx - 1) * (dx - 2) * (dx + 1) * (dy - 1) * (dy - 2) * (dy + 1);
+			b[1] = -1.0 / 4 * dx * (dx + 1) * (dx - 2) * (dy - 1) * (dy - 2) * (dy + 1);
+			b[2] = -1.0 / 4 * dy * (dx - 1) * (dx - 2) * (dx + 1) * (dy + 1) * (dy - 2);
+			b[3] = 1.0 / 4 * dx * dy * (dx + 1) * (dx - 2) * (dy + 1) * (dy - 2);
+			b[4] = -1.0 / 12 * dx * (dx - 1) * (dx - 2) * (dy - 1) * (dy - 2) * (dy + 1);
+			b[5] = -1.0 / 12 * dy * (dx - 1) * (dx - 2) * (dx + 1) * (dy - 1) * (dy - 2);
+			b[6] = 1.0 / 12 * dx * dy * (dx - 1) * (dx - 2) * (dy + 1) * (dy - 2);
+			b[7] = 1.0 / 12 * dx * dy * (dx + 1) * (dx - 2) * (dy - 1) * (dy - 2);
+			b[8] = 1.0 / 12 * dx * (dx - 1) * (dx + 1) * (dy - 1) * (dy - 2) * (dy + 1);
+			b[9] = 1.0 / 12 * dy * (dx - 1) * (dx - 2) * (dx + 1) * (dy - 1) * (dy + 1);
+			b[10] = 1.0 / 36 * dx * dy * (dx - 1) * (dx - 2) * (dy - 1) * (dy - 2);
+			b[11] = -1.0 / 12 * dx * dy * (dx - 1) * (dx + 1) * (dy + 1) * (dy - 2);
+			b[12] = -1.0 / 12 * dx * dy * (dx + 1) * (dx - 2) * (dy - 1) * (dy + 1);
+			b[13] = -1.0 / 36 * dx * dy * (dx - 1) * (dx + 1) * (dy - 1) * (dy - 2);
+			b[14] = -1.0 / 36 * dx * dy * (dx - 1) * (dx - 2) * (dy - 1) * (dy + 1);
+			b[15] = 1.0 / 36 * dx * dy * (dx - 1) * (dx + 1) * (dy - 1) * (dy + 1);
+
+			for (int d = 0; d < size.deep; d++) {
+				double sum = 0;
+
+				sum += b[0] * At(d, y, x);
+				sum += b[1] * At(d, y, x + 1);
+				sum += b[2] * At(d, y + 1, x);
+				sum += b[3] * At(d, y + 1, x + 1);
+				sum += b[4] * At(d, y, x - 1);
+				sum += b[5] * At(d, y - 1, x);
+				sum += b[6] * At(d, y + 1, x - 1);
+				sum += b[7] * At(d, y - 1, x + 1);
+				sum += b[8] * At(d, y, x + 2);
+				sum += b[9] * At(d, y + 2, x);
+				sum += b[10] * At(d, y - 1, x - 1);
+				sum += b[11] * At(d, y + 1, x + 2);
+				sum += b[12] * At(d, y + 2, x + 1);
+				sum += b[13] * At(d, y - 1, x + 2);
+				sum += b[14] * At(d, y + 2, x - 1);
+				sum += b[15] * At(d, y + 2, x + 2);
+
+				result(d, i, j) = sum;
+			}
+		}
+	}
+
+	return result;
 }
 
 // сохранение в виде картинки
