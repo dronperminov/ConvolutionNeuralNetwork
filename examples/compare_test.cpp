@@ -39,7 +39,7 @@ int main() {
 	double learningRate = 0.0015; // скорость обучения
 	int batchSize = 64; // размер батча
 	int maxEpochs = 5; // число эпох обучения
-	LossType lossType = LossType::CrossEntropy; // функция ошибки
+	LossFunction loss = LossFunction::CrossEntropy(); // функция ошибки
 
 	vector<Network> networks;
 	Optimizer optimizer = Optimizer::AdaMax(learningRate);
@@ -90,7 +90,7 @@ int main() {
 		for (int k = 0; k < maxEpochs; k++) {
 			optimizer.SetEpoch(k + 1);
 
-			double error = networks[i].Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, lossType); // обучаем в течение одной эпохи
+			double error = networks[i].Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, loss); // обучаем в течение одной эпохи
 			double test_acc = loader.Test(networks[i], test, "", 10000); // проверяем точность на тестовой выборке
 			double train_acc = loader.Test(networks[i], train, "", 10000); // проверяем точность на обучающей выборке
 

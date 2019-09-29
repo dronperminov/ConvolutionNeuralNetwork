@@ -68,7 +68,7 @@ int main() {
 
 		optimizer.SetEpoch(epoch);
 		
-		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossType::CrossEntropy, augmentation); // обучаем в течение одной эпохи
+		double loss = network.Train(loader.trainInputData, loader.trainOutputData, batchSize, 1, optimizer, LossFunction::CrossEntropy(), augmentation); // обучаем в течение одной эпохи
 		cout << "loss: " << loss << endl;
 
 		double testAcc = loader.Test(network, test, "", 10000); // проверяем точность на тестовой выборке

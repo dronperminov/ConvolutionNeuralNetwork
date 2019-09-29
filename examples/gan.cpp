@@ -121,7 +121,7 @@ int main() {
 	vector<int> discriminatorLayers = { 6, 7, 8, 9, 10, 11, 12 };
 	int discriminatorStart = discriminatorLayers[0]; // слой, с которого начинается дискриминатор
 
-	LossType loss = LossType::BinaryCrossEntropy; // функция потерь - бинарная перекрёстная энтропия
+	LossFunction loss = LossFunction::BinaryCrossEntropy(); // функция потерь - бинарная перекрёстная энтропия
 	Optimizer optimizer = Optimizer::Adam(learningRate, 0, 0.5); // оптимизатор
 
 	DataLoader loader(train, width, height, deep, labels, trainCount, 1); // загружаем обучающие данные

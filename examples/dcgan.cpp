@@ -151,7 +151,7 @@ int main() {
 
 	gan.PrintConfig(); // выводим конфигурацию сети
 
-	LossType loss = LossType::BinaryCrossEntropy; // функция потерь - бинарная перекрёстная энтропия
+	LossFunction loss = LossFunction::BinaryCrossEntropy(); // функция потерь - бинарная перекрёстная энтропия
 	
 	Optimizer genOptimizer = Optimizer::Adam(0.004, 0, 0.5); // оптимизатор
 	Optimizer disOptimizer = Optimizer::Adam(0.005, 0, 0.5); // оптимизатор

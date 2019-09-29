@@ -31,7 +31,7 @@ class Network {
 	void SetBatchSize(int batchSize); // установка размера батча
 	void ResetCache(); // сброс промежуточных данных
 
-	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer, int start = 0); // обучение батча
+	double TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, const LossFunction &E, const Optimizer &optimizer, int start = 0); // обучение батча
 
 public:
 	Network(int width, int height, int deep);
@@ -50,10 +50,10 @@ public:
 	std::vector<Volume>& GetOutput(const std::vector<Volume> &inputs); // получение выхода сети
 	std::vector<Volume>& GetOutputAtLayer(const std::vector<Volume> &inputs, int layer); // получение выхода сети на заданном слое
 
-	double TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, LossType lossType, int start = 0);
-	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation = ""); // обучение сети
-	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType); // получение ошибки на заданной выборке без изменения весовых коэффициентов
-	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType); // поиск оптимальной скорости обучения
+	double TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, const LossFunction &E, int start = 0);
+	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, const LossFunction &E, const std::string augmentation = ""); // обучение сети
+	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const LossFunction &E); // получение ошибки на заданной выборке без изменения весовых коэффициентов
+	void LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, const LossFunction &E); // поиск оптимальной скорости обучения
 
 	void Save(const std::string &path, bool verbose = true) const; // сохранение сети в файл
 	void Load(const std::string &path, bool verbose = true); // загрузка сети из файла
@@ -61,7 +61,7 @@ public:
 
 	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
 
-	void GradientChecking(const std::vector<Volume> &input, const std::vector<Volume> &output, LossType lossType); // численная проверка расчёта градиентов
+	void GradientChecking(const std::vector<Volume> &input, const std::vector<Volume> &output, const LossFunction &E); // численная проверка расчёта градиентов
 	void PrintGradientsStats();
 };
 
@@ -286,7 +286,7 @@ std::vector<Volume>& Network::GetOutputAtLayer(const std::vector<Volume> &inputs
 }
 
 // обучение батча
-double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, LossFunction &E, const Optimizer &optimizer, int start) {
+double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vector<Volume> outputBatch, const LossFunction &E, const Optimizer &optimizer, int start) {
 	size_t size = inputBatch.size();
 	size_t last = layers.size() - 1;
 
@@ -315,16 +315,14 @@ double Network::TrainBatch(const std::vector<Volume> &inputBatch, const std::vec
 	return loss; // возвращаем ошибку
 }
 
-double Network::TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, LossType lossType, int start) {
-	LossFunction E(lossType); // создаём функцию ошибки
+double Network::TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, const LossFunction &E, int start) {
 	SetBatchSize(inputData.size());
 
 	return TrainBatch(inputData, outputData, E, optimizer, start);
 }
 
 // обучение сети
-double Network::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, LossType lossType, const std::string augmentation) {
-	LossFunction E(lossType); // создаём функцию ошибки
+double Network::Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, const LossFunction &E, const std::string augmentation) {
 	double loss = 0;
 
 	for (size_t epoch = 1; epoch <= epochs; epoch++) {
@@ -359,8 +357,7 @@ double Network::Train(const std::vector<Volume> &inputData, const std::vector<Vo
 }
 
 // получение ошибки на заданной выборке без изменения весовых коэффициентов
-double Network::GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType) {
-	LossFunction E(lossType);
+double Network::GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const LossFunction &E) {
 	double loss = 0;
 	size_t total = inputData.size();
 
@@ -372,11 +369,10 @@ double Network::GetError(const std::vector<Volume> &inputData, const std::vector
 }
 
 // поиск оптимальной скорости обучения
-void Network::LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, LossType lossType) {
+void Network::LRFind(const std::string &path, const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, double minLR, double maxLR, Optimizer &optimizer, const LossFunction &E) {
 	int batches = inputData.size() / batchSize; // количество батчей
 	double scale = pow(maxLR / minLR, 1.0 / batches); // шаг изменения скорости обучения
 
-	LossFunction E(lossType); // создаём функцию ошибки
 	std::ofstream f(path);
 
 	f << "learning rate;total loss;batch loss;smoothed total loss;smoothed loss" << std::endl;
@@ -483,14 +479,15 @@ void Network::SetLayerLearnable(int layer, bool learnable) {
 	isLearnable[layer] = learnable;
 }
 
-void Network::GradientChecking(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, LossType lossType) {
-	LossFunction E(lossType);
-
+void Network::GradientChecking(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const LossFunction &E) {
 	size_t last = layers.size() - 1;
 	size_t batchSize = inputData.size();
 
 	SetBatchSize(batchSize);
 
+	if (E.GetName() != "")
+		std::cout << "Loss: " << E.GetName() << std::endl;
+	
 	for (size_t i = 0; i < layers.size(); i++) {
 		int trainableParams = layers[i]->GetTrainableParams();
 

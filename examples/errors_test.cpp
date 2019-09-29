@@ -26,11 +26,11 @@ int main() {
 	DataLoader loaderTrain(train, width, height, deep, labels, trainCount); // загружаем обучающие данные
 	DataLoader loaderTest(test, width, height, deep, labels, testCount); // загружаем проверочные данные
 
-	LossType lossType = LossType::CrossEntropy; // функция - кросс энтропия
+	LossFunction loss = LossFunction::CrossEntropy(); // функция - кросс энтропия
 	
-	cout << "Test error: " << setprecision(10) << network.GetError(loaderTest.trainInputData, loaderTest.trainOutputData, lossType) << endl;
+	cout << "Test error: " << setprecision(10) << network.GetError(loaderTest.trainInputData, loaderTest.trainOutputData, loss) << endl;
 	double test_acc = loaderTest.Test(network, test, "Test accuracy: ", 10000); // проверяем точность на тестовой выборке
 
-	cout << "Train error: " << setprecision(10) << network.GetError(loaderTrain.trainInputData, loaderTrain.trainOutputData, lossType) << endl;
+	cout << "Train error: " << setprecision(10) << network.GetError(loaderTrain.trainInputData, loaderTrain.trainOutputData, loss) << endl;
 	double train_acc = loaderTrain.Test(network, train, "Train accuracy: ", 60000); // проверяем точность на обучающей выборке
 }

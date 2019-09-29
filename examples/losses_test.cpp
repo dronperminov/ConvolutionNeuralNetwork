@@ -40,7 +40,7 @@ int main() {
 	int batchSize = 64; // размер батча
 	int maxEpochs = 5; // число эпох обучения
 
-	vector<LossType> losses = { LossType::CrossEntropy, LossType::BinaryCrossEntropy, LossType::MSE, LossType::Exp, LossType::Logcosh, LossType::MAE }; // функции ошибки
+	vector<LossFunction> losses = { LossFunction::CrossEntropy(), LossFunction::BinaryCrossEntropy(), LossFunction::MSE(), LossFunction::Exp(), LossFunction::Logcosh(), LossFunction::MAE() }; // функции ошибки
 	vector<string> names = { "cross entropy", "binary cross entropy", "MSE", "exp", "logcosh", "MAE" };
 	vector<Network> networks;
 	Optimizer optimizer = Optimizer::AdaMax(learningRate);

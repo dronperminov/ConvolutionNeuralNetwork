@@ -2,30 +2,65 @@
 
 #include "Volume.hpp"
 
-enum class LossType {
-	MSE, // средняя квадратическая ошибка
-	MAE, // средняя абсолютная ошибка
-	CrossEntropy, // перекрёстная этнропия
-	BinaryCrossEntropy, // бинарная перекрёстная этнропия
-	Logcosh, // логарифм гиперболического косинуса
-	Exp // эскпонециальная ошибка
-};
-
 class LossFunction {
+	enum class LossType {
+		MSE, // средняя квадратическая ошибка
+		MAE, // средняя абсолютная ошибка
+		CrossEntropy, // перекрёстная этнропия
+		BinaryCrossEntropy, // бинарная перекрёстная этнропия
+		Logcosh, // логарифм гиперболического косинуса
+		Exp // эскпонециальная ошибка
+	};
+
 	LossType type; // тип функции ошибки
+	std::string name;
 
 public:
-	LossFunction(LossType type);
+	LossFunction(LossType type, const std::string &name = "");
+
+	static LossFunction MSE();
+	static LossFunction MAE();
+	static LossFunction CrossEntropy();
+	static LossFunction BinaryCrossEntropy();
+	static LossFunction Logcosh();
+	static LossFunction Exp();
 
 	double CalculateLoss(const Volume &y, const Volume &t, Volume &deltas) const; // вычисление значений функции ошибки и её производных
 	double CalculateLoss(const Volume &y, const Volume &t) const; // вычисление значений функции ошибки
 	
 	double CalculateLoss(const std::vector<Volume> &y, const std::vector<Volume> &t, std::vector<Volume> &deltas) const; // вычисление значений функции ошибки и её производных для батча
 	double CalculateLoss(const std::vector<Volume> &y, const std::vector<Volume> &t) const; // вычисление значений функции ошибки для батча
+
+	std::string GetName() const; // получение названия функции
 };
 
-LossFunction::LossFunction(LossType type) {
+LossFunction::LossFunction(LossType type, const std::string &name) {
 	this->type = type;
+	this->name = name;
+}
+
+LossFunction LossFunction::MSE() {
+	return LossFunction(LossType::MSE, "MSE");
+}
+
+LossFunction LossFunction::MAE() {
+	return LossFunction(LossType::MAE, "MAE");
+}
+
+LossFunction LossFunction::CrossEntropy() {
+	return LossFunction(LossType::CrossEntropy, "Cross entropy");
+}
+
+LossFunction LossFunction::BinaryCrossEntropy() {
+	return LossFunction(LossType::BinaryCrossEntropy, "Binary cross entropy");
+}
+
+LossFunction LossFunction::Logcosh() {
+	return LossFunction(LossType::Logcosh, "Log cosh");
+}
+
+LossFunction LossFunction::Exp() {
+	return LossFunction(LossType::Exp, "Exp");
 }
 
 // вычисление значений функции ошибки и её производных
@@ -146,4 +181,9 @@ double LossFunction::CalculateLoss(const std::vector<Volume> &y, const std::vect
 		loss += CalculateLoss(y[i], t[i]);
 
 	return loss;
+}
+
+// получение названия функции
+std::string LossFunction::GetName() const {
+	return name;
 }

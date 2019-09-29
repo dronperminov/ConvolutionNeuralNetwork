@@ -832,12 +832,12 @@ void GradientCheckingTest() {
 	network.AddLayer("fullconnected outputs=10 activation=none");
 	network.AddLayer("softmax");
 
-	network.GradientChecking(inputs, outputs, LossType::BinaryCrossEntropy);
-	network.GradientChecking(inputs, outputs, LossType::CrossEntropy);
-	network.GradientChecking(inputs, outputs, LossType::MSE);
-	network.GradientChecking(inputs, outputs, LossType::MAE);
-	network.GradientChecking(inputs, outputs, LossType::Exp);
-	network.GradientChecking(inputs, outputs, LossType::Logcosh);
+	network.GradientChecking(inputs, outputs, LossFunction::BinaryCrossEntropy());
+	network.GradientChecking(inputs, outputs, LossFunction::CrossEntropy());
+	network.GradientChecking(inputs, outputs, LossFunction::MSE());
+	network.GradientChecking(inputs, outputs, LossFunction::MAE());
+	network.GradientChecking(inputs, outputs, LossFunction::Exp());
+	network.GradientChecking(inputs, outputs, LossFunction::Logcosh());
 }
 
 int main() {
