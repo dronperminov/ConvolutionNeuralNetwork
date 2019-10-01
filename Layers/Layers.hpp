@@ -260,12 +260,16 @@ NetworkLayer* ParseNormalizationLayers(VolumeSize size, ArgParser &parser) {
 // парсинг слоя сэмплирования
 NetworkLayer* ParseSamplerLayer(VolumeSize size, ArgParser &parser) {
 	std::string outputs = "";
+	std::string kl = "1";
 
 	for (size_t i = 0; i < parser.size(); i++) {
 		std::string arg = parser[i];
 
 		if (arg == "outputs" || arg == "n" || arg == "size") {
 			outputs = parser.Get(arg);
+		}
+		else if (arg == "KL" || arg == "kl" || arg == "kl_loss" || arg == "kl-loss") {
+			kl = parser.Get(arg);
 		}
 		else if (arg != "sampler")
 			throw std::runtime_error("Invalid sampler argument '" + arg + "'");
@@ -275,7 +279,7 @@ NetworkLayer* ParseSamplerLayer(VolumeSize size, ArgParser &parser) {
 		outputs = std::to_string(size.width * size.height * size.deep);
 	}
 
-	return new SamplerLayer(size, std::stoi(outputs));
+	return new SamplerLayer(size, std::stoi(outputs), std::stod(kl));
 }
 
 // парсинг слоя шума
@@ -530,8 +534,9 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 	}
 	else if (layerType == "sampler") {
 		int outputs;
-		f >> outputs;
-		layer = new SamplerLayer(size, outputs, f);
+		double kl;
+		f >> outputs >> kl;
+		layer = new SamplerLayer(size, outputs, kl, f);
 	}
 	else if (layerType == "block") {
 		std::string type;

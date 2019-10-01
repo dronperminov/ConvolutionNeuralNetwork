@@ -11,6 +11,9 @@
 class SamplerLayer : public NetworkLayer {
 	int total;
 	int outputs;
+
+	double kl;
+
 	NetworkLayer *muLayer;
 	NetworkLayer *stdLayer;
 
@@ -22,8 +25,8 @@ class SamplerLayer : public NetworkLayer {
 	std::normal_distribution<double> distribution;
 
 public:
-	SamplerLayer(VolumeSize size, int outputs);
-	SamplerLayer(VolumeSize size, int outputs, std::ifstream &f);
+	SamplerLayer(VolumeSize size, int outputs, double kl);
+	SamplerLayer(VolumeSize size, int outputs, double kl, std::ifstream &f);
 
 	int GetTrainableParams() const; // получение количества обучаемых параметров
 
@@ -41,20 +44,25 @@ public:
 	void ZeroGradient(int index); // обнуление градиента веса по индексу
 };
 
-SamplerLayer::SamplerLayer(VolumeSize size, int outputs) : NetworkLayer(size, 1, 1, outputs), distribution(0, 1) {
+SamplerLayer::SamplerLayer(VolumeSize size, int outputs, double kl) : NetworkLayer(size, 1, 1, outputs), distribution(0, 1) {
 	this->outputs = outputs;
 	this->total = size.width * size.height * size.deep;
+	this->kl = kl;
 
 	muLayer = new FullyConnectedLayer(size, outputs);
 	stdLayer = new FullyConnectedLayer(size, outputs);
 
 	name = "sampler";
 	info = "outputs: " + std::to_string(outputs);
+
+	if (kl > 0)
+		info += ", kl: " + std::to_string(kl);
 }
 
-SamplerLayer::SamplerLayer(VolumeSize size, int outputs, std::ifstream &f) : NetworkLayer(size, 1, 1, outputs), distribution(0, 1) {
+SamplerLayer::SamplerLayer(VolumeSize size, int outputs, double kl, std::ifstream &f) : NetworkLayer(size, 1, 1, outputs), distribution(0, 1) {
 	this->outputs = outputs;
 	this->total = size.width * size.height * size.deep;
+	this->kl = kl;
 
 	std::string layerType;
 	VolumeSize tmpSize;
@@ -65,6 +73,9 @@ SamplerLayer::SamplerLayer(VolumeSize size, int outputs, std::ifstream &f) : Net
 
 	name = "sampler";
 	info = "outputs: " + std::to_string(outputs);
+
+	if (kl > 0)
+		info += ", kl: " + std::to_string(kl);
 }
 
 // получение количества обучаемых параметров
@@ -89,8 +100,8 @@ void SamplerLayer::Forward(const std::vector<Volume> &X) {
 			deltas[batchIndex][i] = 0.5 * e;
 
 			// loss += 1 + std[batchIndex][i] - mu[batchIndex][i] * mu[batchIndex][i] - exp(std[batchIndex][i]);
-			dL_mu[batchIndex][i] = mu[batchIndex][i];
-			dL_std[batchIndex][i] = -0.5 + 0.5 * exp(std[batchIndex][i]);
+			dL_mu[batchIndex][i] = kl * mu[batchIndex][i];
+			dL_std[batchIndex][i] = kl * (-0.5 + 0.5 * exp(std[batchIndex][i]));
 		}
 	}
 }
@@ -133,7 +144,7 @@ void SamplerLayer::ResetCache() {
 
 // сохранение слоя в файл
 void SamplerLayer::Save(std::ofstream &f) const {
-	f << "sampler " << inputSize << " " << outputs << std::endl;
+	f << "sampler " << inputSize << " " << outputs << " " << kl << std::endl;
 	muLayer->Save(f);
 	stdLayer->Save(f);
 }
