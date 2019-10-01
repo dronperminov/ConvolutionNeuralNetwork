@@ -3,15 +3,18 @@
 #include "Volume.hpp"
 
 class LossFunction {
+protected:
 	enum class LossType {
 		MSE, // средняя квадратическая ошибка
 		MAE, // средняя абсолютная ошибка
 		CrossEntropy, // перекрёстная этнропия
 		BinaryCrossEntropy, // бинарная перекрёстная этнропия
 		Logcosh, // логарифм гиперболического косинуса
-		Exp // эскпонециальная ошибка
+		Exp, // эскпонециальная ошибка
+		User // пользовательская функция
 	};
 
+private:
 	LossType type; // тип функции ошибки
 	std::string name;
 
@@ -25,8 +28,8 @@ public:
 	static LossFunction Logcosh();
 	static LossFunction Exp();
 
-	double CalculateLoss(const Volume &y, const Volume &t, Volume &deltas) const; // вычисление значений функции ошибки и её производных
-	double CalculateLoss(const Volume &y, const Volume &t) const; // вычисление значений функции ошибки
+	virtual double CalculateLoss(const Volume &y, const Volume &t, Volume &deltas) const; // вычисление значений функции ошибки и её производных
+	virtual double CalculateLoss(const Volume &y, const Volume &t) const; // вычисление значений функции ошибки
 	
 	double CalculateLoss(const std::vector<Volume> &y, const std::vector<Volume> &t, std::vector<Volume> &deltas) const; // вычисление значений функции ошибки и её производных для батча
 	double CalculateLoss(const std::vector<Volume> &y, const std::vector<Volume> &t) const; // вычисление значений функции ошибки для батча
