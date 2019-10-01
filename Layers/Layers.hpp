@@ -19,6 +19,7 @@
 #include "DropoutLayer.hpp"
 #include "GaussDropoutLayer.hpp"
 #include "GaussNoiseLayer.hpp"
+#include "SamplerLayer.hpp"
 #include "BatchNormalizationLayer.hpp"
 #include "BatchNormalization2DLayer.hpp"
 
@@ -256,6 +257,27 @@ NetworkLayer* ParseNormalizationLayers(VolumeSize size, ArgParser &parser) {
 	return nullptr;
 }
 
+// парсинг слоя сэмплирования
+NetworkLayer* ParseSamplerLayer(VolumeSize size, ArgParser &parser) {
+	std::string outputs = "";
+
+	for (size_t i = 0; i < parser.size(); i++) {
+		std::string arg = parser[i];
+
+		if (arg == "outputs" || arg == "n" || arg == "size") {
+			outputs = parser.Get(arg);
+		}
+		else if (arg != "sampler")
+			throw std::runtime_error("Invalid sampler argument '" + arg + "'");
+	}
+
+	if (outputs == "") {
+		outputs = std::to_string(size.width * size.height * size.deep);
+	}
+
+	return new SamplerLayer(size, std::stoi(outputs));
+}
+
 // парсинг слоя шума
 NetworkLayer* ParseNoiseLayer(VolumeSize size, ArgParser &parser) {
 	std::string stddev = "0.5";
@@ -366,6 +388,9 @@ NetworkLayer* CreateLayer(VolumeSize size, const std::string &layerConf) {
 	}
 	else if (parser["gaussnoise"]) {
 		layer = ParseNoiseLayer(size, parser);
+	}
+	else if (parser["sampler"]) {
+		layer = ParseSamplerLayer(size, parser);
 	}
 	else if (parser["softmax"]) {
 		layer = new SoftmaxLayer(size);
@@ -502,6 +527,11 @@ NetworkLayer* LoadLayer(VolumeSize size, const std::string &layerType, std::ifst
 		f >> momentum;
 
 		layer = new BatchNormalization2DLayer(size, momentum, f);
+	}
+	else if (layerType == "sampler") {
+		int outputs;
+		f >> outputs;
+		layer = new SamplerLayer(size, outputs, f);
 	}
 	else if (layerType == "block") {
 		std::string type;
