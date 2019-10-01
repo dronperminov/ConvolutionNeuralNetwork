@@ -27,6 +27,8 @@ class Network {
 	std::vector<std::vector<Volume>> outputBatches;
 
 	std::vector<Volume>& Forward(const std::vector<Volume> &input, int start = 0);
+	std::vector<Volume>& GetOutput(const std::vector<Volume> &input, int start, int end);
+
 	void InitBatches(const std::vector<Volume> &inputData, const std::vector<Volume> outputData, size_t batchSize, const std::string augmentation = "");
 	void SetBatchSize(int batchSize); // установка размера батча
 	void ResetCache(); // сброс промежуточных данных
@@ -45,9 +47,11 @@ public:
 	int LayersCount() const; // количество слоёв
 	VolumeSize GetOutputSize() const; // получение размера выхода сети
 	Volume& GetOutput(const Volume& input); // получение выхода сети
+	Volume& GetOutputFromLayer(const Volume& input, int start); // получение выхода сети, начиная со слоя start
 
 	std::vector<Volume>& GetOutput(); // получение текущего выхода сети
 	std::vector<Volume>& GetOutput(const std::vector<Volume> &inputs); // получение выхода сети
+	std::vector<Volume>& GetOutputFromLayer(const std::vector<Volume>& inputs, int start); // получение выхода сети, начиная со слоя start
 	std::vector<Volume>& GetOutputAtLayer(const std::vector<Volume> &inputs, int layer); // получение выхода сети на заданном слое
 
 	double TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, const LossFunction &E, int start = 0);
@@ -83,6 +87,17 @@ std::vector<Volume>& Network::Forward(const std::vector<Volume> &input, int star
 		layers[i]->Forward(layers[i - 1]->GetOutput());
 
 	return layers[layers.size() - 1]->GetOutput();
+}
+
+std::vector<Volume>& Network::GetOutput(const std::vector<Volume> &inputs, int start, int end) {
+	SetBatchSize(inputs.size());
+
+	layers[start]->ForwardOutput(inputs);
+
+	for (size_t i = start + 1; i <= end; i++)
+		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
+
+	return layers[end]->GetOutput();
 }
 
 // инициализация индексов батчей
@@ -253,6 +268,11 @@ Volume& Network::GetOutput(const Volume& input) {
 	return layers[layers.size() - 1]->GetOutput()[0];
 }
 
+// получение выхода сети, начиная со слоя start
+Volume& Network::GetOutputFromLayer(const Volume& input, int start) {
+	return GetOutput({ input }, start, layers.size() - 1)[0];
+}
+
 // получение текущего выхода сети
 std::vector<Volume>& Network::GetOutput() {
 	return layers[layers.size() - 1]->GetOutput();
@@ -260,29 +280,17 @@ std::vector<Volume>& Network::GetOutput() {
 
 // получение выхода сети
 std::vector<Volume>& Network::GetOutput(const std::vector<Volume> &inputs) {
-	SetBatchSize(inputs.size());
+	return GetOutput(inputs, 0, layers.size() - 1);
+}
 
-	layers[0]->ForwardOutput(inputs);
-
-	for (size_t i = 1; i < layers.size(); i++)
-		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
-
-	return layers[layers.size() - 1]->GetOutput();
+// получение выхода сети, начиная со слоя start
+std::vector<Volume>& Network::GetOutputFromLayer(const std::vector<Volume>& inputs, int start) {
+	return GetOutput(inputs, start, layers.size() - 1);
 }
 
 // получение выхода сети на заданном слое
 std::vector<Volume>& Network::GetOutputAtLayer(const std::vector<Volume> &inputs, int layer) {
-	if (layer < 0 || layer >= layers.size())
-		throw std::runtime_error("Invalid layer index");
-
-	SetBatchSize(inputs.size());
-
-	layers[0]->ForwardOutput(inputs);
-
-	for (size_t i = 1; i <= layer; i++)
-		layers[i]->ForwardOutput(layers[i - 1]->GetOutput());
-
-	return layers[layer]->GetOutput();
+	return GetOutput(inputs, 0, layer);
 }
 
 // обучение батча
@@ -575,5 +583,4 @@ void Network::PrintGradientsStats() {
 	}
 
 	std::cout << "+-------+---------------+---------------+" << std::endl;
-
 }
