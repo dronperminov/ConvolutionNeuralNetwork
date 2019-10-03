@@ -1,13 +1,16 @@
 COMPILER=g++
 FLAGS=-O3 -fopenmp -march=native -mtune=native -ffast-math -mavx2
 
-all: mnist cifar10 gan dcgan optimizers activations compares losses errors augmentation tests
+all: mnist cifar10 cifar10-resnet vae vae-conv gan dcgan optimizers activations compares losses errors augmentation tests
 
 mnist:
 	$(COMPILER) $(FLAGS) examples/mnist_cnn.cpp -o examples/mnist_cnn
 
 cifar10:
 	$(COMPILER) $(FLAGS) examples/cifar10_cnn.cpp -o examples/cifar10_cnn
+
+cifar10-resnet:
+	$(COMPILER) $(FLAGS) examples/cifar10_resnet.cpp -o examples/cifar10_resnet
 
 optimizers:
 	$(COMPILER) $(FLAGS) examples/optimizers_test.cpp -o examples/optimizers
