@@ -36,6 +36,9 @@ dcgan:
 vae:
 	$(COMPILER) $(FLAGS) examples/vae.cpp -o examples/vae
 
+vae-conv:
+	$(COMPILER) $(FLAGS) examples/vae_conv.cpp -o examples/vae-conv
+
 tests:
 	$(COMPILER) $(FLAGS) tests.cpp -o tests
 
