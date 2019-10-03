@@ -16,6 +16,14 @@ struct VolumeSize {
 		return std::to_string(width) + "x" + std::to_string(height) + "x" + std::to_string(deep);
 	}
 
+	bool operator==(VolumeSize size) {
+		return deep == size.deep && height == size.height && width == size.width;
+	}
+
+	bool operator!=(VolumeSize size) {
+		return deep != size.deep || height != size.height || width != size.width;
+	}
+
 	friend std::ostream& operator<<(std::ostream& os, const VolumeSize &size) {
 		return os << size.width << " " << size.height << " " << size.deep;
 	}

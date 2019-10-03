@@ -41,6 +41,8 @@ public:
 
 	void AddLayer(const std::string& layerConf); // добавление слоя по текстовому описанию
 	void AddBlock(const std::vector<std::vector<std::string>>& blockConf, const std::string mergeType = "sum"); // добавление блока
+	void AddNetwork(const Network& network); // добавление слоёв другой сети
+
 	void RemoveLayer(int layer); // удаление слоя
 	void PrintConfig() const; // вывод конфигурации
 
@@ -66,6 +68,7 @@ public:
 	void Visualize(const Volume& input, const std::string &path, int blockSize = 1); // визуализация активаций нейронной сети на каждом из уровней
 
 	void SetLayerLearnable(int layer, bool learnable); // изменение обучаемости слоя
+	void SetLearnable(bool learnable); // изменение обучаемости сети
 
 	void GradientChecking(const std::vector<Volume> &input, const std::vector<Volume> &output, const LossFunction &E); // численная проверка расчёта градиентов
 	void PrintGradientsStats();
@@ -75,6 +78,8 @@ Network::Network(int width, int height, int deep) {
 	inputSize.width = width;
 	inputSize.height = height;
 	inputSize.deep = deep;
+
+	outputSize = inputSize;
 }
 
 Network::Network(const std::string &path) {
@@ -202,6 +207,25 @@ void Network::AddBlock(const std::vector<std::vector<std::string>>& blockConf, c
 	isLearnable.push_back(true);
 
 	outputSize = block->GetOutputSize();
+}
+
+// добавление слоёв другой сети
+void Network::AddNetwork(const Network& network) {
+	if (network.layers.size() == 0)
+		throw std::runtime_error("Unable to add network. No layers");
+
+	if (layers.size() > 0 && network.layers[0]->GetInputSize() != outputSize)
+		throw std::runtime_error("Unable to add network. Different sizes");
+
+	if (layers.size() == 0)
+		inputSize = network.layers[0]->GetInputSize();
+
+	for (size_t i = 0; i < network.layers.size(); i++) {
+		layers.push_back(network.layers[i]);
+		isLearnable.push_back(true);
+	}
+
+	outputSize = layers[layers.size() - 1]->GetOutputSize();
 }
 
 // удаление слоя
@@ -495,6 +519,12 @@ void Network::SetLayerLearnable(int layer, bool learnable) {
 		throw std::runtime_error("Invalid layer");
 
 	isLearnable[layer] = learnable;
+}
+
+// изменение обучаемости сети
+void Network::SetLearnable(bool learnable) {
+	for (size_t i = 0; i < layers.size(); i++)
+		isLearnable[i] = learnable;
 }
 
 void Network::GradientChecking(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const LossFunction &E) {
