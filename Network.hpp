@@ -54,6 +54,8 @@ public:
 	std::vector<Volume>& GetOutputFromLayer(const std::vector<Volume>& inputs, int start); // получение выхода сети, начиная со слоя start
 	std::vector<Volume>& GetOutputAtLayer(const std::vector<Volume> &inputs, int layer); // получение выхода сети на заданном слое
 
+	NetworkLayer* GetLayer(int layer); // получение слоя по индексу
+
 	double TrainOnBatch(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const Optimizer &optimizer, const LossFunction &E, int start = 0);
 	double Train(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, size_t batchSize, size_t epochs, const Optimizer &optimizer, const LossFunction &E, const std::string augmentation = ""); // обучение сети
 	double GetError(const std::vector<Volume> &inputData, const std::vector<Volume> &outputData, const LossFunction &E); // получение ошибки на заданной выборке без изменения весовых коэффициентов
@@ -291,6 +293,14 @@ std::vector<Volume>& Network::GetOutputFromLayer(const std::vector<Volume>& inpu
 // получение выхода сети на заданном слое
 std::vector<Volume>& Network::GetOutputAtLayer(const std::vector<Volume> &inputs, int layer) {
 	return GetOutput(inputs, 0, layer);
+}
+
+// получение слоя по индексу
+NetworkLayer* Network::GetLayer(int layer) {
+	if (layer < 0 || layer >= layers.size())
+		throw std::runtime_error("Unable to get layer: invalid index");
+
+	return layers[layer];
 }
 
 // обучение батча

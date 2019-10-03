@@ -38,6 +38,8 @@ public:
 	void SetBatchSize(int batchSize); // установка размера батча
 	void Save(std::ofstream &f) const; // сохранение слоя в файл
 
+	void SetKL(double kl); // установка коэффициента функции потерь
+
 	void SetParam(int index, double weight); // установка веса по индексу
 	double GetParam(int index) const; // получение веса по индексу
 	double GetGradient(int index) const; // получение градиента веса по индексу
@@ -160,6 +162,11 @@ void SamplerLayer::SetBatchSize(int batchSize) {
 	deltas = std::vector<Volume>(batchSize, Volume(outputSize));
 	dL_mu = std::vector<Volume>(batchSize, Volume(outputSize));
 	dL_std = std::vector<Volume>(batchSize, Volume(outputSize));
+}
+
+// установка коэффициента функции потерь
+void SamplerLayer::SetKL(double kl) {
+	this->kl = kl;
 }
 
 // установка веса по индексу
