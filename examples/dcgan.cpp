@@ -110,7 +110,7 @@ void DenormImage(Volume &volume) {
 }
 
 // сохранение сгенерированных картинок  сети
-void SaveExamples(Network &generator, int latentDim, int count, int epoch) {
+void SaveExamples(Network &generator, Network &discriminator, int latentDim, int count, int epoch) {
 	vector<Volume>& fakeData = GenerateFakeExamples(generator, latentDim, count);
 		
 	string path = "epoch" + to_string(epoch);
@@ -122,6 +122,7 @@ void SaveExamples(Network &generator, int latentDim, int count, int epoch) {
 	}
 
 	generator.Save(path + "/generator.txt");
+	discriminator.Save(path + "/discriminator.txt");
 }
 
 // точность классификации
@@ -242,6 +243,6 @@ int main() {
 		cout << "epoch " << epoch << ", dis loss: " << disLoss / batchCount << ", gen loss: " << genLoss / batchCount << endl;
 
 		if (epoch < 10 || epoch % 5 == 0)
-			SaveExamples(generator, latentDim, batchSize, epoch);
+			SaveExamples(generator, discriminator, latentDim, batchSize, epoch);
 	}
 }
